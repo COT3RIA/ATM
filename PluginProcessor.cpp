@@ -409,9 +409,15 @@ void AudioToMidiProcessor::runConversion (juce::File file, bool decode, int gen)
     const auto midiFile = writeMidi (result, file);
     const auto count = result.size();
 
+    const auto key = a2m::estimateKey (result);
+
     {
         const juce::SpinLock::ScopedLockType sl (noteLock);
         notes.swap (result);
+    }
+    {
+        const juce::ScopedLock sl (infoLock);
+        keyInfo = key;
     }
     ++notesVersion;
 

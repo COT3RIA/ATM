@@ -107,3 +107,10 @@ automatically. The check can be turned off with "Check updates" in the settings.
 
 To publish a new version: raise `project(... VERSION x.y.z)` in `CMakeLists.txt` (and `AppVersion` in `ATM.iss`),
 upload the new installer to your channel, then change the number in `latest.json`.
+
+## Tempo and key readout
+
+In the lower right of the settings panel the plugin shows the tempo of the written MIDI file and the musical key
+found in the notes (`BPM 100 · KEY C# min`). The bar under it shows how sure the plugin is: one third red = low,
+two thirds yellow = medium, full green = high. Click the key to switch to the second most likely one (usually the
+relative major / minor). The key is an estimate from the transcribed notes; short or atonal material gives a low confidence.

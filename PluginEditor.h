@@ -227,6 +227,23 @@ private:
 };
 
 //==============================================================================
+// BPM / key readout with a confidence bar: 1/3 red, 2/3 amber, full green
+class KeyReadout : public juce::Component, public juce::SettableTooltipClient
+{
+public:
+    KeyReadout() { setMouseCursor (juce::MouseCursor::PointingHandCursor);
+                   setTooltip ("Detected tempo and key. Click the key to switch between the two most likely keys"); }
+    void update (AudioToMidiProcessor&);
+    void paint (juce::Graphics&) override;
+    void mouseUp (const juce::MouseEvent& e) override { if (contains (e.getPosition()) && key.valid) { showAlt = ! showAlt; repaint(); } }
+
+private:
+    a2m::KeyResult key;
+    double bpm = 0.0;
+    int version = -1;
+    bool showAlt = false;
+};
+
 class AdvancedPanel : public juce::Component
 {
 public:
@@ -260,7 +277,8 @@ private:
     juce::ToggleButton inferToggle, smoothToggle, sfxToggle;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> inferAtt, smoothAtt, sfxAtt;
     juce::TextButton playButton { "Play" }, resetButton { "Reset to defaults" };
-    juce::ToggleButton updatesToggle { "Check updates" };
+    juce::ToggleButton updatesToggle { "Updates" };
+    KeyReadout readout;
     std::unique_ptr<juce::FileChooser> chooser;
 };
 

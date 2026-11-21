@@ -72,6 +72,8 @@ public:
     // --- Notes for the piano roll ---
     std::vector<a2m::Note> getNotesSnapshot() const;
     int getNotesVersion() const { return notesVersion.load(); }
+    a2m::KeyResult getKeyInfo() const        { const juce::ScopedLock sl (infoLock); return keyInfo; }
+    double getMidiBpm() const noexcept       { return midiBpm.load(); }
     double getTotalSeconds() const { return totalSeconds.load(); }
     double getPlayPositionSeconds() const { return playPosUi.load(); }
 
@@ -119,6 +121,7 @@ private:
     juce::String statusText { "Drop an audio file (MP3 / WAV / FLAC) onto the window" };
     juce::File lastMidiFile;
     juce::String midiFolderPath;
+    a2m::KeyResult keyInfo;                    // key of the last transcription (guarded by infoLock)
 
     mutable juce::SpinLock noteLock;
     std::vector<a2m::Note> notes;

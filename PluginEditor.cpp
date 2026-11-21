@@ -817,6 +817,63 @@ void HistoryPanel::resized()
 }
 
 //==============================================================================
+// BPM / key readout
+void KeyReadout::update (AudioToMidiProcessor& p)
+{
+    const int v = p.getNotesVersion();
+    const double b = p.getMidiBpm();
+    if (v == version && std::abs (b - bpm) < 0.01)
+        return;
+    if (v != version)
+        showAlt = false;
+    version = v;
+    bpm = b;
+    key = p.getKeyInfo();
+    repaint();
+}
+
+void KeyReadout::paint (juce::Graphics& g)
+{
+    const auto& pal = paletteOf (*this);
+    auto r = getLocalBounds().toFloat();
+
+    juce::String keyText = "--";
+    if (key.valid)
+    {
+        const int t = showAlt ? key.altTonic : key.tonic;
+        const bool m = showAlt ? key.altMinor : key.minor;
+        keyText = juce::String (a2m::keyName (t)) + (m ? " min" : " maj");
+    }
+    const juce::String bpmText = key.valid ? juce::String (juce::roundToInt (bpm)) : juce::String ("--");
+
+    const juce::String line = "BPM " + bpmText + "  " + juce::String::charToString ((juce::juce_wchar) 0xb7) + "  KEY " + keyText;
+    const juce::Font font (juce::FontOptions (17.0f, juce::Font::bold));
+    juce::GlyphArrangement ga;
+    ga.addLineOfText (font, line, 0.0f, 0.0f);
+    const float tw = std::ceil (ga.getBoundingBox (0, -1, true).getWidth());
+
+    auto top = r.removeFromTop (22.0f);
+    g.setColour (pal.text);
+    g.setFont (font);
+    g.drawText (line, top.withWidth (tw + 4.0f), juce::Justification::centredLeft, false);
+
+    // confidence bar: exactly as long as the text, right under it
+    const juce::Rectangle<float> bar (0.0f, 22.0f, tw, 7.0f);
+    g.setColour (pal.track);
+    g.fillRoundedRectangle (bar, 3.5f);
+    if (key.valid)
+    {
+        const auto col = key.level >= 3 ? juce::Colour (0xff4cc35a)
+                       : key.level == 2 ? juce::Colour (0xffe8b923)
+                                        : juce::Colour (0xffd9423b);
+        g.setColour (col);
+        g.fillRoundedRectangle (bar.withWidth (bar.getWidth() * (float) key.level / 3.0f), 3.5f);
+    }
+    g.setColour (pal.panelBorder);
+    g.drawRoundedRectangle (bar, 3.5f, 1.0f);
+}
+
+//==============================================================================
 // Advanced settings panel
 AdvancedPanel::AdvancedPanel (AudioToMidiProcessor& p) : processor (p)
 {
@@ -842,6 +899,7 @@ AdvancedPanel::AdvancedPanel (AudioToMidiProcessor& p) : processor (p)
     addAndMakeVisible (playButton);
     addAndMakeVisible (resetButton);
 
+    addAndMakeVisible (readout);
     addAndMakeVisible (updatesToggle);
     updatesToggle.setToggleState (processor.getCheckUpdates(), juce::dontSendNotification);
     updatesToggle.setTooltip ("Tell me when a new version of ATM is available");
@@ -954,6 +1012,7 @@ void AdvancedPanel::setupToggle (juce::ToggleButton& t,
 
 void AdvancedPanel::refresh()
 {
+    readout.update (processor);
     playButton.setButtonText (processor.isPlaying() ? juce::String ("Stop") : juce::String ("Play"));
 }
 
@@ -961,7 +1020,7 @@ void AdvancedPanel::paint (juce::Graphics& g)
 {
     const auto& pal = paletteOf (*this);
     auto r = getLocalBounds().toFloat().reduced (1.0f);
-    g.setColour (pal.panel.withAlpha (0.94f));
+    g.setColour (pal.panel.withAlpha (0.78f));
     g.fillRoundedRectangle (r, 14.0f);
     g.setColour (pal.panelBorder);
     g.drawRoundedRectangle (r, 14.0f, 1.8f);
@@ -982,13 +1041,14 @@ void AdvancedPanel::resized()
         rows[i].value.setBounds (W - 18 - 108, centres[i] - 16, 108, 32);
     }
 
-    inferToggle.setBounds (14, 286, 168, 30);
-    smoothToggle.setBounds (188, 286, 160, 30);
-    sfxToggle.setBounds (354, 286, 160, 30);
+    inferToggle.setBounds (10, 286, 142, 30);
+    smoothToggle.setBounds (152, 286, 130, 30);
+    sfxToggle.setBounds (282, 286, 120, 30);
+    updatesToggle.setBounds (402, 286, 116, 30);
 
-    playButton.setBounds (16, 320, 150, 36);
-    resetButton.setBounds (176, 320, 176, 36);
-    updatesToggle.setBounds (358, 322, 160, 32);
+    playButton.setBounds (16, 320, 130, 36);
+    resetButton.setBounds (156, 320, 176, 36);
+    readout.setBounds (342, 322, 176, 34);
 }
 
 //==============================================================================

@@ -484,4 +484,83 @@ inline std::vector<Note> convert (const std::vector<float>& mono, double sampleR
     const auto spec = analyse (mono, sampleRate, shouldCancel);
     return transcribe (*spec, s);
 }
+
+// ---------------------------------------------------------------------------------------------
+// Musical key from the transcribed notes: pitch-class profile (weighted by duration and loudness)
+// compared with the Krumhansl-Kessler major / minor profiles (Pearson correlation).
+struct KeyResult
+{
+    bool valid = false;
+    int  tonic = 0;           // 0 = C ... 11 = B
+    bool minor = false;
+    int  altTonic = 0;        // the second best key (often the relative major / minor)
+    bool altMinor = false;
+    int  level = 0;           // confidence: 1 = low, 2 = medium, 3 = high
+    float score = 0.0f;       // correlation of the best key
+    float gap = 0.0f;         // distance to the second best
+};
+
+inline KeyResult estimateKey (const std::vector<Note>& notes)
+{
+    KeyResult out;
+    if (notes.size() < 4)
+        return out;
+
+    double chroma[12] = {};
+    double total = 0.0;
+    for (const auto& n : notes)
+    {
+        const double d = std::min (2.0, std::max (0.05, n.endSec - n.startSec));
+        const double w = std::sqrt (d) * (0.4 + 0.6 * n.velocity / 127.0);
+        chroma[((n.pitch % 12) + 12) % 12] += w;
+        total += w;
+    }
+    if (total <= 0.0)
+        return out;
+
+    static const double major[12] = { 6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88 };
+    static const double minor[12] = { 6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17 };
+
+    auto corr = [&] (const double* prof, int tonic)
+    {
+        double mx = 0, my = 0;
+        for (int i = 0; i < 12; ++i) { mx += chroma[(i + tonic) % 12]; my += prof[i]; }
+        mx /= 12; my /= 12;
+        double sxy = 0, sxx = 0, syy = 0;
+        for (int i = 0; i < 12; ++i)
+        {
+            const double a = chroma[(i + tonic) % 12] - mx, b = prof[i] - my;
+            sxy += a * b; sxx += a * a; syy += b * b;
+        }
+        return sxx > 0 && syy > 0 ? sxy / std::sqrt (sxx * syy) : 0.0;
+    };
+
+    struct C { double r; int t; bool m; };
+    C best { -2, 0, false }, second { -2, 0, false };
+    for (int t = 0; t < 12; ++t)
+        for (int m = 0; m < 2; ++m)
+        {
+            const C c { corr (m ? minor : major, t), t, m == 1 };
+            if (c.r > best.r)        { second = best; best = c; }
+            else if (c.r > second.r) { second = c; }
+        }
+
+    out.valid = true;
+    out.tonic = best.t;   out.minor = best.m;
+    out.altTonic = second.t;  out.altMinor = second.m;
+    out.score = (float) best.r;
+    out.gap = (float) (best.r - second.r);
+
+    if (best.r >= 0.78 && out.gap >= 0.05 && notes.size() >= 16)       out.level = 3;
+    else if (best.r >= 0.62 && out.gap >= 0.02 && notes.size() >= 8)   out.level = 2;
+    else                                                                out.level = 1;
+    return out;
+}
+
+inline const char* keyName (int tonic)
+{
+    static const char* n[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+    return n[((tonic % 12) + 12) % 12];
+}
+
 } // namespace a2m
