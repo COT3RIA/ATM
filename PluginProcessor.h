@@ -67,7 +67,16 @@ public:
     juce::File getMidiFolder() const;
     void setMidiFolder (const juce::File& folder);
     juce::File getLastMidiFile() const;
-    juce::String getStatusText() const;
+    juce::String getStatusText() const;           // formatted in the current interface language
+
+    struct StatusInfo
+    {
+        enum Kind { drop, loading, reanalysing, cannotRead, analysing, tooShort, noFile, done } kind = drop;
+        juce::String file;
+        int count = 0;
+        double bpm = 0.0;
+        bool hostTempo = false, fromZero = false;
+    };
 
     // --- Notes for the piano roll ---
     std::vector<a2m::Note> getNotesSnapshot() const;
@@ -86,6 +95,11 @@ public:
 
     // update notice: once per session the plugin reads a tiny version file (see ATM_UPDATE_URL in CMakeLists.txt);
     // nothing is downloaded or installed, the user is only told that a newer version exists
+    // "Solo instrument" preset (single guitar / piano and the like): Note sensitivity 0.60, Split sensitivity 0.30.
+    // It is "on" whenever the two sliders sit on exactly these values; switching it off restores the previous ones.
+    bool isSoloPreset() const;
+    void toggleSoloPreset();
+
     bool getCheckUpdates() const;
     void setCheckUpdates (bool);
     void startUpdateCheck();
@@ -110,7 +124,7 @@ private:
     void runConversion (juce::File file, bool decode, int gen);
     std::shared_ptr<const AudioData> decodeFile (const juce::File& file, const std::function<bool()>& cancelled);
     juce::File writeMidi (const std::vector<a2m::Note>& notes, const juce::File& sourceAudio);
-    void setStatus (const juce::String& text);
+    void setStatus (const StatusInfo& s);
 
     // analysed audio (kept so that settings changes only need the fast second stage)
     mutable juce::CriticalSection dataLock;
@@ -118,7 +132,7 @@ private:
     juce::File audioFile;
 
     mutable juce::CriticalSection infoLock;
-    juce::String statusText { "Drop an audio file (MP3 / WAV / FLAC) onto the window" };
+    StatusInfo statusInfo;
     juce::File lastMidiFile;
     juce::String midiFolderPath;
     a2m::KeyResult keyInfo;                    // key of the last transcription (guarded by infoLock)
@@ -150,6 +164,7 @@ private:
 
     std::atomic<bool> updateAvailable { false };
     juce::String latestVersion;
+    float soloPrevNote = 0.75f, soloPrevSplit = 0.50f;
     juce::ThreadPool netPool { 1 };
 
     juce::ThreadPool pool { 1 };   // must stay the last member

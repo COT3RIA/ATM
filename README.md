@@ -19,10 +19,12 @@ The window is an ATM; every part of it works:
 
 * **Screen**: the piano roll with the notes and the status line. The "ATM" sign above it pulses softly in time
   with the music while it plays.
-* **Keys beside the screen** (labels are shown on the screen). Left, top to bottom: OPEN, PLAY/STOP, HISTORY, SETTINGS (show / hide the Advanced Settings), (free).
-  Right, top to bottom: START (where the MIDI begins: "AUDIO" keeps the notes at the position they have in the audio,
-  "0" moves the first note to the very start of the grid), THEME (dark / light panels), RESET (default settings), TELEGRAM (opens the COTERIA channels), (free). The "ATM" sign at the top is an invisible link to the same page.
-  The MIDI folder is set with "Set MIDI folder..." in the settings panel.
+* **Keys beside the screen** (labels are shown on the screen). Left, top to bottom: OPEN, PLAY/STOP, HISTORY,
+  SETTINGS (show / hide the Advanced Settings), (free). Right column, page 1: START ("AUDIO" keeps the notes where they
+  are in the audio, "0" moves the first note to the start of the grid), SOLO (preset for a single instrument: Note
+  sensitivity 0.60, Split sensitivity 0.30; press again to go back), RESET (default settings), NEXT, TELEGRAM (opens
+  the COTERIA channels). Page 2 (after NEXT): THEME (dark / light panels), LANG (English / Russian interface), BACK, TELEGRAM.
+  The MIDI folder is set with "Set MIDI folder..." in the settings panel. The "ATM" sign at the top is an invisible link to the same page.
 * **Card reader**: insert the audio file here - click it or drop a file on the window. It blinks amber while converting.
 * **Receipt printer**: opens the **History** of all MIDI files the plugin has written (drag them into the DAW).
 * **Numeric pad**: ENTER = play / stop, CANCEL = stop, CLEAR = close the history.
@@ -114,3 +116,8 @@ In the lower right of the settings panel the plugin shows the tempo of the writt
 found in the notes (`BPM 100 · KEY C# min`). The bar under it shows how sure the plugin is: one third red = low,
 two thirds yellow = medium, full green = high. Click the key to switch to the second most likely one (usually the
 relative major / minor). The key is an estimate from the transcribed notes; short or atonal material gives a low confidence.
+
+## Language
+
+The whole interface is available in English and Russian (key LANG on page 2). The default follows the language of the
+system; the choice is remembered in `COTERIA/ATM.settings` in the user's application-data folder. All texts are in `Lang.h`.

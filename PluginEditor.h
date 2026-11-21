@@ -4,6 +4,7 @@
 #include <functional>
 #include <vector>
 #include "PluginProcessor.h"
+#include "Lang.h"
 
 //==============================================================================
 // Colours for the dark and the light theme
@@ -90,6 +91,7 @@ private:
     bool busyNow = false;
     int busyTickNow = 0;
     float beat = 0.0f;
+    float labelAlpha = 0.0f;                        // the key labels fade in once there is a conversion on the screen
 };
 
 //==============================================================================
@@ -209,11 +211,12 @@ public:
     void resized() override;
     void mouseDrag (const juce::MouseEvent&) override;
     void refresh();
+    void relocalise();
 
     std::function<void()> onClose;
 
 private:
-    struct Item { juce::File file; juce::String info; };
+    struct Item { juce::File file; juce::String info; int noteCount = 0; };
 
     int getNumRows() override { return (int) items.size(); }
     void paintListBoxItem (int row, juce::Graphics&, int w, int h, bool selected) override;
@@ -234,6 +237,7 @@ public:
     KeyReadout() { setMouseCursor (juce::MouseCursor::PointingHandCursor);
                    setTooltip ("Detected tempo and key. Click the key to switch between the two most likely keys"); }
     void update (AudioToMidiProcessor&);
+    void relocalise() { setTooltip (lang::tr ("Detected tempo and key. Click the key to switch between the two most likely keys")); repaint(); }
     void paint (juce::Graphics&) override;
     void mouseUp (const juce::MouseEvent& e) override { if (contains (e.getPosition()) && key.valid) { showAlt = ! showAlt; repaint(); } }
 
@@ -253,6 +257,7 @@ public:
     void resized() override;
     void lookAndFeelChanged() override;
     void refresh();                          // update play button text
+    void relocalise();                       // set all texts in the current language
     void chooseFolder();
     void resetDefaults();
 
@@ -260,6 +265,7 @@ private:
     struct Row
     {
         juce::Label name, value;
+        juce::String key;
         juce::Slider slider;
         std::function<juce::String (double)> format;
         std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachment;
@@ -309,6 +315,9 @@ private:
     void toggleHistory();
     void showHistory (bool);
     void toggleSettings();
+    bool page2 = false;                                 // second page of the right-hand keys
+    void applyKeyPage();
+    void relocalise();
     bool settingsOn = true;                             // the Advanced Settings window is shown
     void setHighlight (bool on);
     void updateSoftLabels();
@@ -323,7 +332,7 @@ private:
     SignGlow signGlow;
     SignLink signLink;
     NoteRoll roll;                                      // the ATM screen
-    HwButton keyOpen, keyPlay, keyHistory, keySettings, keyStart, keyTheme, keyReset, keyTelegram;   // keys beside the screen (left 1-3, right 1, 4, 5)
+    HwButton keyOpen, keyPlay, keyHistory, keySettings, keySolo, keyStart, keyTheme, keyReset, keyTelegram, keyNext, keyLang;   // keys beside the screen (left 1-3, right 1, 4, 5)
     HwButton receipt;                                   // history
     CardReader card;
     KeypadComponent keypad;

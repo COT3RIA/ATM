@@ -55,6 +55,7 @@ target_sources(AudioToMidi PRIVATE
     PluginEditor.cpp
     PluginEditor.h
     PitchToMidi.h
+    Lang.h
     BasicPitchNet.h
     BasicPitchModel.h)
 

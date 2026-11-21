@@ -1,4 +1,5 @@
 #include "PluginProcessor.h"
+#include "Lang.h"
 #include <BinaryData.h>
 #include "PluginEditor.h"
 
@@ -100,22 +101,72 @@ a2m::Settings AudioToMidiProcessor::currentSettings() const
     return s;
 }
 
-void AudioToMidiProcessor::setStatus (const juce::String& text)
+void AudioToMidiProcessor::setStatus (const StatusInfo& s)
 {
     const juce::ScopedLock sl (infoLock);
-    statusText = text;
+    statusInfo = s;
 }
 
 juce::String AudioToMidiProcessor::getStatusText() const
 {
-    const juce::ScopedLock sl (infoLock);
-    return statusText;
+    StatusInfo s;
+    {
+        const juce::ScopedLock sl (infoLock);
+        s = statusInfo;
+    }
+    using lang::tr;
+    switch (s.kind)
+    {
+        case StatusInfo::drop:        return tr ("Drop an audio file (MP3 / WAV / FLAC) onto the window");
+        case StatusInfo::loading:     return tr ("Loading ") + s.file + "...";
+        case StatusInfo::reanalysing: return tr ("Re-analysing...");
+        case StatusInfo::cannotRead:  return tr ("Could not read ") + s.file;
+        case StatusInfo::analysing:   return tr ("Analysing ") + s.file + "...";
+        case StatusInfo::tooShort:    return tr ("The audio is too short or silent");
+        case StatusInfo::noFile:      return lang::notes (s.count) + " - " + tr ("could not write the MIDI file, check the MIDI folder");
+        case StatusInfo::done:
+            return lang::notes (s.count) + "  ->  " + s.file + "  |  "
+                   + juce::String (s.bpm, 1).trimCharactersAtEnd ("0").trimCharactersAtEnd (".")
+                   + (s.hostTempo ? juce::String (" BPM") : tr (" BPM auto"))
+                   + (s.fromZero ? "  |  " + tr ("from 0") : juce::String());
+    }
+    return {};
 }
 
 juce::File AudioToMidiProcessor::getLastMidiFile() const
 {
     const juce::ScopedLock sl (infoLock);
     return lastMidiFile;
+}
+
+//==============================================================================
+// "Solo instrument" preset
+static void setParamValue (juce::AudioProcessorValueTreeState& apvts, const char* id, float v)
+{
+    if (auto* p = apvts.getParameter (id))
+        p->setValueNotifyingHost (p->convertTo0to1 (v));
+}
+
+bool AudioToMidiProcessor::isSoloPreset() const
+{
+    return std::abs (apvts.getRawParameterValue (ids::noteSens)->load() - 0.60f) < 0.005f
+        && std::abs (apvts.getRawParameterValue (ids::splitSens)->load() - 0.30f) < 0.005f;
+}
+
+void AudioToMidiProcessor::toggleSoloPreset()
+{
+    if (isSoloPreset())
+    {
+        setParamValue (apvts, ids::noteSens, soloPrevNote);
+        setParamValue (apvts, ids::splitSens, soloPrevSplit);
+    }
+    else
+    {
+        soloPrevNote  = apvts.getRawParameterValue (ids::noteSens)->load();
+        soloPrevSplit = apvts.getRawParameterValue (ids::splitSens)->load();
+        setParamValue (apvts, ids::noteSens, 0.60f);
+        setParamValue (apvts, ids::splitSens, 0.30f);
+    }
 }
 
 //==============================================================================
@@ -270,7 +321,12 @@ void AudioToMidiProcessor::startJob (const juce::File& file, bool decode)
 {
     const int gen = ++generation;                 // cancels whatever is running
     busy = true;
-    setStatus (decode ? "Loading " + file.getFileName() + "..." : "Re-analysing...");
+    {
+        StatusInfo si;
+        si.kind = decode ? StatusInfo::loading : StatusInfo::reanalysing;
+        si.file = file.getFileName();
+        setStatus (si);
+    }
 
     pool.addJob ([this, file, decode, gen] { runConversion (file, decode, gen); });
 }
@@ -348,13 +404,13 @@ void AudioToMidiProcessor::runConversion (juce::File file, bool decode, int gen)
 
         if (data == nullptr)
         {
-            setStatus ("Could not read " + file.getFileName());
+            { StatusInfo si; si.kind = StatusInfo::cannotRead; si.file = file.getFileName(); setStatus (si); }
             busy = false;
             return;
         }
 
         const double seconds = (double) data->mono.size() / data->sampleRate;
-        setStatus ("Analysing " + file.getFileName() + "...");
+        { StatusInfo si; si.kind = StatusInfo::analysing; si.file = file.getFileName(); setStatus (si); }
 
         std::shared_ptr<const a2m::Spectrogram> analysed = a2m::analyse (data->mono, data->sampleRate, cancelled);
         data.reset();                                   // free the raw audio, only the spectrogram is needed
@@ -363,7 +419,7 @@ void AudioToMidiProcessor::runConversion (juce::File file, bool decode, int gen)
 
         if (analysed == nullptr || analysed->numFrames < 4)
         {
-            setStatus ("The audio is too short or silent");
+            { StatusInfo si; si.kind = StatusInfo::tooShort; setStatus (si); }
             busy = false;
             return;
         }
@@ -426,13 +482,21 @@ void AudioToMidiProcessor::runConversion (juce::File file, bool decode, int gen)
         lastMidiFile = midiFile;
     }
 
-    juce::String info = juce::String ((int) count) + " notes";
-
-    if (midiFile == juce::File())
-        setStatus (info + " - could not write the MIDI file, check the MIDI folder");
-    else
-        setStatus (info + "  ->  " + midiFile.getFileName() + "  |  " + juce::String (midiBpm.load(), 1).trimCharactersAtEnd ("0").trimCharactersAtEnd (".")
-                   + (tempoFromHost.load() ? " BPM" : " BPM auto") + (startAtZero ? "  |  from 0" : ""));
+    {
+        StatusInfo si;
+        si.count = (int) count;
+        if (midiFile == juce::File())
+            si.kind = StatusInfo::noFile;
+        else
+        {
+            si.kind = StatusInfo::done;
+            si.file = midiFile.getFileName();
+            si.bpm = midiBpm.load();
+            si.hostTempo = tempoFromHost.load();
+            si.fromZero = startAtZero;
+        }
+        setStatus (si);
+    }
 
     if (decode && apvts.getRawParameterValue (ids::sfx)->load() > 0.5f)
         sfxRequested = true;

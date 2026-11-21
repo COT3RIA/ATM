@@ -1,5 +1,7 @@
 #include "PluginEditor.h"
 #include <BinaryData.h>
+#include "Lang.h"
+using lang::tr;
 
 //==============================================================================
 // Palette / look and feel
@@ -224,6 +226,17 @@ void NoteRoll::refresh()
 
     total = processor.getTotalSeconds();
 
+    {
+        const float want = notes.empty() ? 0.0f : 1.0f;
+        if (labelAlpha != want)
+        {
+            labelAlpha += juce::jlimit (-0.12f, 0.045f, want - labelAlpha);     // slow fade in (~0.7 s), quicker fade out
+            if (std::abs (labelAlpha - want) < 0.01f)
+                labelAlpha = want;
+            repaint();
+        }
+    }
+
     const double pos = processor.isPlaying() ? processor.getPlayPositionSeconds() : -1.0;
     if (pos != playPos)
     {
@@ -328,13 +341,15 @@ void NoteRoll::paint (juce::Graphics& g)
             const float tw = ga.getBoundingBox (0, -1, true).getWidth() + 14.0f;
             const float x = left ? 3.0f : bounds.getRight() - 3.0f - tw;
             const auto rr = juce::Rectangle<float> (x, y - 10.0f, tw, 20.0f);
-            g.setColour (juce::Colour (0xff06225e).withAlpha (0.6f));
+            g.setColour (juce::Colour (0xff06225e).withAlpha (0.6f * labelAlpha));
             g.fillRoundedRectangle (rr, 5.0f);
-            g.setColour (ink.withAlpha (0.95f));
+            g.setColour (ink.withAlpha (0.95f * labelAlpha));
             g.drawText (text, rr, juce::Justification::centred);
         };
+        if (labelAlpha > 0.005f)
         for (size_t i = 0; i < leftLabels.size() && i < 5; ++i)
             if (leftLabels[i].isNotEmpty()) pill (leftLabels[i], true, cy[i]);
+        if (labelAlpha > 0.005f)
         for (size_t i = 0; i < rightLabels.size() && i < 5; ++i)
             if (rightLabels[i].isNotEmpty()) pill (rightLabels[i], false, cy[i]);
     }
@@ -368,7 +383,7 @@ void NoteRoll::paint (juce::Graphics& g)
 
         g.setColour (ink);
         g.setFont (juce::Font (juce::FontOptions (26.0f, juce::Font::bold)));
-        g.drawText ("Drop audio here", getLocalBounds().withTrimmedTop (getHeight() - 80).withHeight (34), juce::Justification::centred);
+        g.drawText (tr ("Drop audio here"), getLocalBounds().withTrimmedTop (getHeight() - 80).withHeight (34), juce::Justification::centred);
         g.setColour (ink.withAlpha (0.85f));
         g.setFont (juce::Font (juce::FontOptions (19.0f)));
         g.drawText ("MP3 / WAV / FLAC", getLocalBounds().withTrimmedTop (getHeight() - 46).withHeight (26), juce::Justification::centred);
@@ -380,7 +395,7 @@ void NoteRoll::paint (juce::Graphics& g)
         const float cy = bounds.getCentreY() - 14.0f;
         g.setColour (ink.withAlpha (0.95f));
         g.setFont (juce::Font (juce::FontOptions (28.0f, juce::Font::bold)));
-        g.drawText ("Converting...", getLocalBounds().withY ((int) cy - 52).withHeight (40), juce::Justification::centred);
+        g.drawText (tr ("Converting..."), getLocalBounds().withY ((int) cy - 52).withHeight (40), juce::Justification::centred);
 
         const int n = 22;
         const float w = bounds.getWidth() - 70.0f, step = w / (float) n;
@@ -654,7 +669,7 @@ void MidiDragHandle::paint (juce::Graphics& g)
                 juce::Justification::bottomLeft, true);
     g.setColour (juce::Colour (0xff6f6c63));
     g.setFont (juce::Font (juce::FontOptions (14.0f)));
-    g.drawText ("drag into your DAW", t.withTrimmedLeft (34.0f).withTrimmedTop (t.getHeight() * 0.62f).toNearestInt(),
+    g.drawText (tr ("drag into your DAW"), t.withTrimmedLeft (34.0f).withTrimmedTop (t.getHeight() * 0.62f).toNearestInt(),
                 juce::Justification::topLeft);
 }
 
@@ -674,11 +689,9 @@ void MidiDragHandle::mouseDrag (const juce::MouseEvent& e)
 // History panel
 HistoryPanel::HistoryPanel (AudioToMidiProcessor& p) : processor (p)
 {
-    title.setText ("History", juce::dontSendNotification);
     title.setFont (juce::Font (juce::FontOptions (25.0f, juce::Font::bold)));
     addAndMakeVisible (title);
 
-    hint.setText ("Drag a file into your DAW. Double-click shows it in the folder.", juce::dontSendNotification);
     hint.setFont (juce::Font (juce::FontOptions (16.0f)));
     addAndMakeVisible (hint);
 
@@ -712,6 +725,7 @@ HistoryPanel::HistoryPanel (AudioToMidiProcessor& p) : processor (p)
     };
 
     closeButton.onClick = [this] { if (onClose) onClose(); };
+    relocalise();
 }
 
 void HistoryPanel::refresh()
@@ -737,8 +751,7 @@ void HistoryPanel::refresh()
                         if (ev->message.isNoteOn())
                             ++noteCount;
 
-        items.push_back ({ f, f.getLastModificationTime().formatted ("%d.%m.%Y  %H:%M")
-                              + "   -   " + juce::String (noteCount) + " notes" });
+        items.push_back ({ f, f.getLastModificationTime().formatted ("%d.%m.%Y  %H:%M"), noteCount });
     }
 
     list.updateContent();
@@ -767,7 +780,7 @@ void HistoryPanel::paintListBoxItem (int row, juce::Graphics& g, int w, int h, b
 
     g.setColour (pal.textDim);
     g.setFont (juce::Font (juce::FontOptions (15.0f)));
-    g.drawText (items[(size_t) row].info, 14, 31, w - 28, 20, juce::Justification::centredLeft, true);
+    g.drawText (items[(size_t) row].info + "   -   " + lang::notes (items[(size_t) row].noteCount), 14, 31, w - 28, 20, juce::Justification::centredLeft, true);
 }
 
 void HistoryPanel::listBoxItemDoubleClicked (int row, const juce::MouseEvent&)
@@ -799,8 +812,19 @@ void HistoryPanel::paint (juce::Graphics& g)
     {
         g.setColour (pal.textDim);
         g.setFont (juce::Font (juce::FontOptions (19.0f)));
-        g.drawText ("No MIDI files yet", getLocalBounds().withTrimmedTop (60).withTrimmedBottom (60), juce::Justification::centred);
+        g.drawText (tr ("No MIDI files yet"), getLocalBounds().withTrimmedTop (60).withTrimmedBottom (60), juce::Justification::centred);
     }
+}
+
+void HistoryPanel::relocalise()
+{
+    title.setText (tr ("History"), juce::dontSendNotification);
+    hint.setText (tr ("Drag a file into your DAW. Double-click shows it in the folder."), juce::dontSendNotification);
+    folderButton.setButtonText (tr ("Open folder"));
+    deleteButton.setButtonText (tr ("Delete"));
+    closeButton.setButtonText (tr ("Close"));
+    list.repaint();
+    repaint();
 }
 
 void HistoryPanel::resized()
@@ -842,11 +866,11 @@ void KeyReadout::paint (juce::Graphics& g)
     {
         const int t = showAlt ? key.altTonic : key.tonic;
         const bool m = showAlt ? key.altMinor : key.minor;
-        keyText = juce::String (a2m::keyName (t)) + (m ? " min" : " maj");
+        keyText = juce::String (a2m::keyName (t)) + tr (m ? " min" : " maj");
     }
     const juce::String bpmText = key.valid ? juce::String (juce::roundToInt (bpm)) : juce::String ("--");
 
-    const juce::String line = "BPM " + bpmText + "  " + juce::String::charToString ((juce::juce_wchar) 0xb7) + "  KEY " + keyText;
+    const juce::String line = "BPM " + bpmText + "  " + juce::String::charToString ((juce::juce_wchar) 0xb7) + "  " + tr ("KEY") + " " + keyText;
     const juce::Font font (juce::FontOptions (17.0f, juce::Font::bold));
     juce::GlyphArrangement ga;
     ga.addLineOfText (font, line, 0.0f, 0.0f);
@@ -877,7 +901,6 @@ void KeyReadout::paint (juce::Graphics& g)
 // Advanced settings panel
 AdvancedPanel::AdvancedPanel (AudioToMidiProcessor& p) : processor (p)
 {
-    title.setText ("Advanced Settings", juce::dontSendNotification);
     title.setFont (juce::Font (juce::FontOptions (25.0f, juce::Font::bold)));
     addAndMakeVisible (title);
 
@@ -886,11 +909,11 @@ AdvancedPanel::AdvancedPanel (AudioToMidiProcessor& p) : processor (p)
 
     setupRow (rows[0], "Note sensitivity",  ids::noteSens,  [] (double v) { return juce::String (v, 2); });
     setupRow (rows[1], "Split sensitivity", ids::splitSens, [] (double v) { return juce::String (v, 2); });
-    setupRow (rows[2], "Min note length",   ids::minNoteMs, [] (double v) { return juce::String ((int) std::lround (v)) + " ms"; });
-    setupRow (rows[3], "Min frequency",     ids::minFreq,   [] (double v) { return v < 1.0 ? juce::String ("Off")
-                                                                                          : juce::String ((int) std::lround (v)) + " Hz"; });
-    setupRow (rows[4], "Max frequency",     ids::maxFreq,   [] (double v) { return juce::String ((int) std::lround (v)) + " Hz"; });
-    setupRow (rows[5], "Note-off hangover", ids::hangover,  [] (double v) { return juce::String ((int) std::lround (v)) + " frames"; });
+    setupRow (rows[2], "Min note length",   ids::minNoteMs, [] (double v) { return juce::String ((int) std::lround (v)) + tr (" ms"); });
+    setupRow (rows[3], "Min frequency",     ids::minFreq,   [] (double v) { return v < 1.0 ? tr ("Off")
+                                                                                          : juce::String ((int) std::lround (v)) + tr (" Hz"); });
+    setupRow (rows[4], "Max frequency",     ids::maxFreq,   [] (double v) { return juce::String ((int) std::lround (v)) + tr (" Hz"); });
+    setupRow (rows[5], "Note-off hangover", ids::hangover,  [] (double v) { return juce::String ((int) std::lround (v)) + tr (" frames"); });
 
     setupToggle (inferToggle,  inferAtt,  "Infer Onsets", ids::inferOn);
     setupToggle (smoothToggle, smoothAtt, "Smoothing",    ids::smoothing);
@@ -902,16 +925,38 @@ AdvancedPanel::AdvancedPanel (AudioToMidiProcessor& p) : processor (p)
     addAndMakeVisible (readout);
     addAndMakeVisible (updatesToggle);
     updatesToggle.setToggleState (processor.getCheckUpdates(), juce::dontSendNotification);
-    updatesToggle.setTooltip ("Tell me when a new version of ATM is available");
     updatesToggle.onClick = [this] { processor.setCheckUpdates (updatesToggle.getToggleState()); };
 
     playButton.onClick = [this] { processor.togglePlay(); refresh(); };
     resetButton.onClick = [this] { resetDefaults(); };
+    relocalise();
+}
+
+void AdvancedPanel::relocalise()
+{
+    title.setText (tr ("Advanced Settings"), juce::dontSendNotification);
+    folderButton.setButtonText (tr ("Set MIDI folder..."));
+    for (auto& row : rows)
+    {
+        row.name.setText (tr (row.key), juce::dontSendNotification);
+        row.value.setTooltip (tr ("Click to type a value"));
+        if (row.slider.onValueChange)
+            row.slider.onValueChange();
+    }
+    inferToggle.setButtonText (tr ("Infer Onsets"));
+    smoothToggle.setButtonText (tr ("Smoothing"));
+    sfxToggle.setButtonText ("ATM SFX");
+    updatesToggle.setButtonText (tr ("Updates"));
+    updatesToggle.setTooltip (tr ("Tell me when a new version of ATM is available"));
+    resetButton.setButtonText (tr ("Reset to defaults"));
+    readout.relocalise();
+    refresh();
+    repaint();
 }
 
 void AdvancedPanel::chooseFolder()
 {
-    chooser = std::make_unique<juce::FileChooser> ("Choose the folder for generated MIDI files", processor.getMidiFolder());
+    chooser = std::make_unique<juce::FileChooser> (tr ("Choose the folder for generated MIDI files"), processor.getMidiFolder());
     chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
                           [this] (const juce::FileChooser& fc)
                           {
@@ -954,7 +999,8 @@ void AdvancedPanel::setupRow (Row& row, const juce::String& label, const char* p
 {
     row.format = std::move (fmt);
 
-    row.name.setText (label, juce::dontSendNotification);
+    row.key = label;
+    row.name.setText (tr (label), juce::dontSendNotification);
     row.name.setFont (juce::Font (juce::FontOptions (19.0f)));
     addAndMakeVisible (row.name);
 
@@ -974,7 +1020,6 @@ void AdvancedPanel::setupRow (Row& row, const juce::String& label, const char* p
     // the number can also be typed: click the value, enter a number, press Enter
     row.value.setEditable (true, true, false);
     row.value.setMouseCursor (juce::MouseCursor::IBeamCursor);
-    row.value.setTooltip ("Click to type a value");
     row.value.onEditorShow = [r]
     {
         if (auto* ed = r->value.getCurrentTextEditor())
@@ -991,7 +1036,7 @@ void AdvancedPanel::setupRow (Row& row, const juce::String& label, const char* p
         if (num.containsAnyOf ("0123456789"))
             r->slider.setValue (juce::jlimit (r->slider.getMinimum(), r->slider.getMaximum(), num.getDoubleValue()),
                                 juce::sendNotificationSync);
-        else if (txt.equalsIgnoreCase ("off"))
+        else if (txt.equalsIgnoreCase ("off") || txt == tr ("Off"))
             r->slider.setValue (r->slider.getMinimum(), juce::sendNotificationSync);
         r->slider.onValueChange();            // always restore the formatted text
     };
@@ -1013,7 +1058,7 @@ void AdvancedPanel::setupToggle (juce::ToggleButton& t,
 void AdvancedPanel::refresh()
 {
     readout.update (processor);
-    playButton.setButtonText (processor.isPlaying() ? juce::String ("Stop") : juce::String ("Play"));
+    playButton.setButtonText (processor.isPlaying() ? tr ("Stop") : tr ("Play"));
 }
 
 void AdvancedPanel::paint (juce::Graphics& g)
@@ -1066,7 +1111,7 @@ AudioToMidiEditor::AudioToMidiEditor (AudioToMidiProcessor& p)
     content.addAndMakeVisible (roll);
     content.addAndMakeVisible (signGlow);
     content.addAndMakeVisible (signLink);
-    for (auto* k : { &keyOpen, &keyPlay, &keyHistory, &keySettings, &keyStart, &keyTheme, &keyReset, &keyTelegram })
+    for (auto* k : { &keyOpen, &keyPlay, &keyHistory, &keySettings, &keySolo, &keyStart, &keyTheme, &keyReset, &keyTelegram, &keyNext, &keyLang })
         content.addAndMakeVisible (*k);
     content.addAndMakeVisible (receipt);
     content.addAndMakeVisible (card);
@@ -1077,17 +1122,11 @@ AudioToMidiEditor::AudioToMidiEditor (AudioToMidiProcessor& p)
     history.setVisible (false);
     history.onClose = [this] { showHistory (false); };
 
-    keyOpen.setTooltip ("Open an audio file");
-    keyPlay.setTooltip ("Play / stop the preview");
-    keyHistory.setTooltip ("History of your MIDI files");
-    keyTheme.setTooltip ("Dark / light theme of the panels");
-    keySettings.setTooltip ("Show / hide the Advanced Settings");
-    keyTelegram.setTooltip ("COTERIA on Telegram");
-    signLink.setTooltip ("COTERIA on Telegram");
-    keyReset.setTooltip ("Reset the settings to defaults");
-    keyStart.setTooltip ("MIDI position: keep the position the notes have in the audio / start the first note at 0 of the grid");
-    receipt.setTooltip ("History of your MIDI files");
-    card.setTooltip ("Insert an audio file (MP3 / WAV / FLAC), or drop it on the window");
+    keyLang.onClick = [this]
+    {
+        lang::set (! lang::isRu());
+        relocalise();
+    };
 
     keyOpen.onClick    = [this] { openChooser(); };
     keyPlay.onClick    = [this] { processor.togglePlay(); };
@@ -1096,6 +1135,8 @@ AudioToMidiEditor::AudioToMidiEditor (AudioToMidiProcessor& p)
     keyTheme.onClick   = [this] { applyTheme (! processor.isDarkTheme()); };
     keyTelegram.onClick = [] { juce::URL ("https://t.me/addlist/K6LKlIp6UWI4Y2Uy").launchInDefaultBrowser(); };
     signLink.onClick    = [] { juce::URL ("https://t.me/addlist/K6LKlIp6UWI4Y2Uy").launchInDefaultBrowser(); };
+    keyNext.onClick = [this] { page2 = ! page2; applyKeyPage(); updateSoftLabels(); };
+    keySolo.onClick = [this] { processor.toggleSoloPreset(); updateSoftLabels(); };
     keySettings.onClick = [this] { toggleSettings(); };
     keyReset.onClick   = [this] { panel.resetDefaults(); };
     keyStart.onClick   = [this]
@@ -1126,6 +1167,7 @@ AudioToMidiEditor::AudioToMidiEditor (AudioToMidiProcessor& p)
     const int w = stored.x >= 400 ? juce::jmin (stored.x, 1400) : 640;
     setSize (w, (int) std::lround ((double) w / aspect));
 
+    relocalise();
     processor.startUpdateCheck();
 
     startTimerHz (30);
@@ -1169,10 +1211,15 @@ void AudioToMidiEditor::layoutContent()
     keyPlay.setBounds    (juce::Rectangle<int> (39, 26).withPosition (leftKeys[1]));     // 2
     keyHistory.setBounds (juce::Rectangle<int> (39, 26).withPosition (leftKeys[2]));     // 3
     keySettings.setBounds (juce::Rectangle<int> (39, 26).withPosition (leftKeys[3]));    // 4
-    keyStart.setBounds   (juce::Rectangle<int> (39, 26).withPosition (rightKeys[0]));    // 6
-    keyTheme.setBounds   (juce::Rectangle<int> (39, 26).withPosition (rightKeys[1]));    // 7
-    keyReset.setBounds   (juce::Rectangle<int> (39, 26).withPosition (rightKeys[2]));    // 8
-    keyTelegram.setBounds (juce::Rectangle<int> (39, 26).withPosition (rightKeys[3]));   // 9
+    // right column, page 1: START, SOLO, RESET, NEXT, TELEGRAM    page 2: THEME, -, -, BACK, TELEGRAM
+    keyStart.setBounds    (juce::Rectangle<int> (39, 26).withPosition (rightKeys[0]));   // 6
+    keyTheme.setBounds    (juce::Rectangle<int> (39, 26).withPosition (rightKeys[0]));   // 6 (page 2)
+    keyLang.setBounds     (juce::Rectangle<int> (39, 26).withPosition (rightKeys[1]));   // 7 (page 2)
+    keySolo.setBounds     (juce::Rectangle<int> (39, 26).withPosition (rightKeys[1]));   // 7
+    keyReset.setBounds    (juce::Rectangle<int> (39, 26).withPosition (rightKeys[2]));   // 8
+    keyNext.setBounds     (juce::Rectangle<int> (39, 26).withPosition (rightKeys[3]));   // 9
+    keyTelegram.setBounds (juce::Rectangle<int> (39, 26).withPosition (rightKeys[4]));   // 10
+    applyKeyPage();
 
     receipt.setBounds (265, 650, 137, 98);
     card.setBounds (615, 646, 150, 148);
@@ -1206,6 +1253,38 @@ void AudioToMidiEditor::showHistory (bool show)
         history.toFront (false);
 }
 
+void AudioToMidiEditor::relocalise()
+{
+    keyOpen.setTooltip (tr ("Open an audio file"));
+    keyPlay.setTooltip (tr ("Play / stop the preview"));
+    keyHistory.setTooltip (tr ("History of your MIDI files"));
+    keyTheme.setTooltip (tr ("Dark / light theme of the panels"));
+    keySettings.setTooltip (tr ("Show / hide the Advanced Settings"));
+    keyTelegram.setTooltip (tr ("COTERIA on Telegram"));
+    signLink.setTooltip (tr ("COTERIA on Telegram"));
+    keySolo.setTooltip (tr ("Solo instrument preset (one guitar, piano...): fewer extra notes. Sets Note sensitivity 0.60 and Split sensitivity 0.30"));
+    keyNext.setTooltip (tr ("Next / previous page of keys"));
+    keyReset.setTooltip (tr ("Reset the settings to defaults"));
+    keyStart.setTooltip (tr ("MIDI position: keep the position the notes have in the audio / start the first note at 0 of the grid"));
+    keyLang.setTooltip (tr ("Interface language: English / Russian"));
+    receipt.setTooltip (tr ("History of your MIDI files"));
+    card.setTooltip (tr ("Insert an audio file (MP3 / WAV / FLAC), or drop it on the window"));
+    panel.relocalise();
+    history.relocalise();
+    updateSoftLabels();
+    roll.repaint();
+    repaint();
+}
+
+void AudioToMidiEditor::applyKeyPage()
+{
+    keyStart.setVisible (! page2);
+    keySolo.setVisible  (! page2);
+    keyReset.setVisible (! page2);
+    keyTheme.setVisible (page2);
+    keyLang.setVisible (page2);
+}
+
 void AudioToMidiEditor::toggleSettings()
 {
     if (history.isVisible())
@@ -1235,16 +1314,24 @@ void AudioToMidiEditor::updateSoftLabels()
         keySettings.lit = settingsLit;
         keySettings.repaint();
     }
+    const bool solo = processor.isSoloPreset();
+    if (keySolo.lit != solo)
+    {
+        keySolo.lit = solo;
+        keySolo.repaint();
+    }
     const bool update = processor.isUpdateAvailable();
     if (keyTelegram.lit != update)
     {
         keyTelegram.lit = update;
         keyTelegram.repaint();
-        keyTelegram.setTooltip (update ? "New version " + processor.getLatestVersion() + " is available - open the COTERIA channel"
-                                       : juce::String ("COTERIA on Telegram"));
+        keyTelegram.setTooltip (update ? tr ("New version ") + processor.getLatestVersion() + tr (" is available - open the COTERIA channel")
+                                       : tr ("COTERIA on Telegram"));
     }
-    roll.setSoftLabels ({ "OPEN", processor.isPlaying() ? "STOP" : "PLAY", "HISTORY", "SETTINGS", {} },
-                        { startZero ? "START: 0" : "START: AUDIO", "THEME", "RESET", update ? "UPDATE!" : "TELEGRAM", {} });
+    const juce::String tg = update ? tr ("UPDATE!") : juce::String ("TELEGRAM");
+    roll.setSoftLabels ({ tr ("OPEN"), tr (processor.isPlaying() ? "STOP" : "PLAY"), tr ("HISTORY"), tr ("SETTINGS"), {} },
+                        page2 ? std::vector<juce::String> { tr ("THEME"), lang::isRu() ? juce::String::fromUTF8 ("ЯЗЫК: RU") : juce::String ("LANG: EN"), {}, tr ("BACK"), tg }
+                              : std::vector<juce::String> { tr (startZero ? "START: 0" : "START: AUDIO"), tr ("SOLO"), tr ("RESET"), tr ("NEXT"), tg });
 }
 
 void AudioToMidiEditor::timerCallback()
@@ -1275,7 +1362,7 @@ void AudioToMidiEditor::timerCallback()
 // Opening / dropping audio
 void AudioToMidiEditor::openChooser()
 {
-    chooser = std::make_unique<juce::FileChooser> ("Choose an audio file",
+    chooser = std::make_unique<juce::FileChooser> (tr ("Choose an audio file"),
                                                    juce::File::getSpecialLocation (juce::File::userMusicDirectory),
                                                    "*.mp3;*.wav;*.flac;*.aif;*.aiff;*.ogg");
 
