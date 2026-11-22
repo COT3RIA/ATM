@@ -84,6 +84,8 @@ public:
     int getNotesVersion() const { return notesVersion.load(); }
     a2m::KeyResult getKeyInfo() const        { const juce::ScopedLock sl (infoLock); return keyInfo; }
     double getMidiBpm() const noexcept       { return midiBpm.load(); }
+    // Tempo of the audio itself (what the track really runs at); falls back to the MIDI tempo when it cannot be found
+    double getTrackBpm() const noexcept      { const double d = detectedBpm.load(); return (d >= 40.0 && d <= 240.0) ? d : midiBpm.load(); }
     double getTotalSeconds() const { return totalSeconds.load(); }
     double getPlayPositionSeconds() const { return playPosUi.load(); }
 

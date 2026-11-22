@@ -332,7 +332,7 @@ void NoteRoll::paint (juce::Graphics& g)
 
     // the keys beside the screen: what each one does
     {
-        const float cy[] = { 64.0f, 95.5f, 127.0f, 160.0f, 193.0f };   // the keys' centres, relative to the screen
+        const float cy[] = { 61.0f, 96.0f, 130.0f, 164.0f, 199.0f };   // the keys' centres, relative to the screen
         g.setFont (juce::Font (juce::FontOptions (15.0f, juce::Font::bold)));
         auto pill = [&] (const juce::String& text, bool left, float y)
         {
@@ -430,25 +430,6 @@ void AtmBackground::paint (juce::Graphics& g)
         g.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
         g.drawImage (image, getLocalBounds().toFloat());
     }
-
-    // the music-note badge beside "MIDI" (the one in the picture was blurred and crooked, it was removed from the picture)
-    {
-        const auto white = juce::Colour (0xfff4f4f4);
-        g.setColour (juce::Colours::black.withAlpha (0.45f));
-        g.drawRoundedRectangle (juce::Rectangle<float> (472.0f, 948.0f, 24.0f, 24.0f), 4.5f, 3.2f);
-        g.setColour (white);
-        g.drawRoundedRectangle (juce::Rectangle<float> (471.0f, 947.0f, 24.0f, 24.0f), 4.5f, 2.2f);
-
-        juce::Path note;
-        note.startNewSubPath (480.0f, 962.0f);      // left stem
-        note.lineTo (480.0f, 953.0f);
-        note.lineTo (489.5f, 951.0f);               // beam
-        note.lineTo (489.5f, 960.0f);               // right stem
-        g.strokePath (note, juce::PathStrokeType (1.9f, juce::PathStrokeType::mitered, juce::PathStrokeType::butt));
-        g.fillRoundedRectangle (juce::Rectangle<float> (480.0f, 952.5f, 9.5f, 3.0f), 0.8f);
-        g.fillEllipse (475.8f, 960.3f, 5.6f, 4.4f);
-        g.fillEllipse (485.3f, 958.3f, 5.6f, 4.4f);
-    }
 }
 
 //==============================================================================
@@ -459,7 +440,7 @@ void SignGlow::paint (juce::Graphics& g)
         return;
 
     // the sign's blue panel is (301, 49)-(722, 185) in the picture; this component starts at (288, 36)
-    const auto sign = juce::Rectangle<float> (13.0f, 13.0f, 421.0f, 136.0f);
+    const auto sign = juce::Rectangle<float> (12.0f, 20.0f, 424.0f, 136.0f);
     for (int i = 4; i >= 1; --i)                                // soft halo
     {
         g.setColour (juce::Colour (0xff8fc4ff).withAlpha (0.045f * level * (float) (5 - i)));
@@ -513,7 +494,7 @@ void CardReader::setState (bool isBusy, bool isDrag, int tick)
 void CardReader::paintButton (juce::Graphics& g, bool highlighted, bool)
 {
     // positions of the three green lights of the picture, relative to this component (it starts at 615, 646)
-    const juce::Rectangle<float> lights[] = { { 28.0f, 43.0f, 98.0f, 10.0f }, { 50.0f, 62.0f, 58.0f, 14.0f }, { 53.0f, 114.0f, 52.0f, 16.0f } };
+    const juce::Rectangle<float> lights[] = { { 34.0f, 44.0f, 98.0f, 9.0f }, { 64.0f, 72.0f, 42.0f, 10.0f }, { 66.0f, 122.0f, 40.0f, 10.0f } };
 
     if (busy)
     {
@@ -539,15 +520,17 @@ void CardReader::paintButton (juce::Graphics& g, bool highlighted, bool)
 // Numeric pad
 KeypadComponent::KeypadComponent()
 {
-    // component origin in the picture: (400, 740)
-    const int cols[] = { 440, 480, 520 }, rows[] = { 763, 788, 816, 845 };
+    // component origin in the picture: (396, 736); the keys stand on a slight perspective, so each row has its own columns
+    const int ox = 396, oy = 736;
+    const int colsRow[4][3] = { { 439, 479, 520 }, { 436, 479, 522 }, { 433, 477, 521 }, { 430, 477, 521 } };
+    const int rows[] = { 764, 795, 827, 859 };
     for (int r = 0; r < 4; ++r)
         for (int cI = 0; cI < 3; ++cI)
-            keys.push_back ({ juce::Rectangle<int> (cols[cI] - 18 - 400, rows[r] - 12 - 740, 36, 24), 0 });
+            keys.push_back ({ juce::Rectangle<int> (colsRow[r][cI] - 18 - ox, rows[r] - 12 - oy, 36, 25), 0 });
 
-    keys.push_back ({ juce::Rectangle<int> (545 - 400, 752 - 740, 52, 23), 1 });     // cancel
-    keys.push_back ({ juce::Rectangle<int> (545 - 400, 779 - 740, 52, 22), 2 });     // clear
-    keys.push_back ({ juce::Rectangle<int> (547 - 400, 804 - 740, 55, 53), 3 });     // enter
+    keys.push_back ({ juce::Rectangle<int> (544 - ox, 751 - oy, 57, 27), 1 });       // cancel
+    keys.push_back ({ juce::Rectangle<int> (546 - ox, 782 - oy, 58, 27), 2 });       // clear
+    keys.push_back ({ juce::Rectangle<int> (549 - ox, 814 - oy, 65, 60), 3 });       // enter
     setMouseCursor (juce::MouseCursor::PointingHandCursor);
 }
 
@@ -630,7 +613,7 @@ void StatusLed::paint (juce::Graphics& g)
 //==============================================================================
 // MIDI output slot: the finished MIDI file sticks out of it like a printed ticket; drag it into the DAW.
 // This component starts at (300, 930) in the picture.
-static juce::Rectangle<float> ticketRect() { return { 100.0f, 84.0f, 230.0f, 78.0f }; }
+static juce::Rectangle<float> ticketRect() { return { 100.0f, 92.0f, 230.0f, 78.0f }; }
 
 bool MidiDragHandle::hitTest (int x, int y)
 {
@@ -645,9 +628,9 @@ void MidiDragHandle::paint (juce::Graphics& g)
 
     // the slot's light turns green
     g.setColour (juce::Colour (0xff7ee08a).withAlpha (0.35f));
-    g.fillRoundedRectangle (juce::Rectangle<float> (60.0f, 64.0f, 310.0f, 9.0f), 4.0f);
+    g.fillRoundedRectangle (juce::Rectangle<float> (44.0f, 72.0f, 338.0f, 12.0f), 5.0f);
     g.setColour (juce::Colour (0xffb8ffc4));
-    g.fillRoundedRectangle (juce::Rectangle<float> (64.0f, 67.0f, 302.0f, 3.0f), 1.5f);
+    g.fillRoundedRectangle (juce::Rectangle<float> (50.0f, 75.0f, 326.0f, 5.0f), 2.5f);
 
     // the ticket
     const auto t = ticketRect();
@@ -1133,7 +1116,7 @@ void HistoryPanel::resized()
 void KeyReadout::update (AudioToMidiProcessor& p)
 {
     const int v = p.getNotesVersion();
-    const double b = p.getMidiBpm();
+    const double b = p.getTrackBpm();
     if (v == version && std::abs (b - bpm) < 0.01)
         return;
     if (v != version)
@@ -1361,7 +1344,7 @@ void AdvancedPanel::paint (juce::Graphics& g)
 {
     const auto& pal = paletteOf (*this);
     auto r = getLocalBounds().toFloat().reduced (1.0f);
-    g.setColour (pal.panel.withAlpha (0.78f));
+    g.setColour (pal.panel.withAlpha (0.92f));
     g.fillRoundedRectangle (r, 14.0f);
     g.setColour (pal.panelBorder);
     g.drawRoundedRectangle (r, 14.0f, 1.8f);
@@ -1371,10 +1354,10 @@ void AdvancedPanel::resized()
 {
     const int W = getWidth();
 
-    title.setBounds (18, 8, 280, 36);
-    folderButton.setBounds (W - 16 - 190, 8, 190, 36);
+    title.setBounds (18, 6, 280, 36);
+    folderButton.setBounds (W - 16 - 190, 6, 190, 36);
 
-    const int centres[] = { 74, 112, 150, 188, 226, 264 };
+    const int centres[] = { 62, 97, 132, 167, 202, 237 };
     for (size_t i = 0; i < rows.size(); ++i)
     {
         rows[i].name.setBounds (18, centres[i] - 16, 184, 32);
@@ -1382,14 +1365,14 @@ void AdvancedPanel::resized()
         rows[i].value.setBounds (W - 18 - 108, centres[i] - 16, 108, 32);
     }
 
-    inferToggle.setBounds (10, 286, 142, 30);
-    smoothToggle.setBounds (152, 286, 130, 30);
-    sfxToggle.setBounds (282, 286, 120, 30);
-    updatesToggle.setBounds (402, 286, 116, 30);
+    inferToggle.setBounds (10, 259, 142, 30);
+    smoothToggle.setBounds (152, 259, 130, 30);
+    sfxToggle.setBounds (282, 259, 120, 30);
+    updatesToggle.setBounds (402, 259, 116, 30);
 
-    playButton.setBounds (16, 320, 130, 36);
-    resetButton.setBounds (156, 320, 176, 36);
-    readout.setBounds (342, 322, 176, 34);
+    playButton.setBounds (16, 295, 130, 36);
+    resetButton.setBounds (156, 295, 176, 36);
+    readout.setBounds (342, 297, 176, 34);
 }
 
 //==============================================================================
@@ -1420,6 +1403,7 @@ AudioToMidiEditor::AudioToMidiEditor (AudioToMidiProcessor& p)
     content.addAndMakeVisible (panel);
     content.addAndMakeVisible (history);
     history.setVisible (false);
+    applyPanelVisibility();
     history.onClose = [this] { showHistory (false); };
 
     keyLang.onClick = [this]
@@ -1505,17 +1489,17 @@ void AudioToMidiEditor::layoutContent()
 {
     // everything is placed on the picture (1024 x 1536)
     background.setBounds (0, 0, baseW, baseH);
-    led.setBounds (395, 243, 237, 18);
-    roll.setBounds (348, 364, 331, 221);
+    led.setBounds (380, 238, 264, 20);
+    roll.setBounds (350, 360, 328, 229);
 
     signGlow.setBounds (288, 36, 448, 160);
-    receiptPaper.setBounds (279, 705, 112, 150);
+    receiptPaper.setBounds (274, 703, 112, 150);
     receiptOverlay.setBounds (0, 0, 1024, 1536);
-    signLink.setBounds (301, 49, 421, 136);         // the blue panel of the sign
+    signLink.setBounds (300, 56, 424, 138);         // the blue panel of the sign
 
     // the keys beside the screen stand on an arc: their real positions in the picture (x, y of each 39 x 26 key)
-    const juce::Point<int> leftKeys[]  = { { 292, 416 }, { 290, 448 }, { 288, 479 }, { 287, 512 }, { 285, 544 } };
-    const juce::Point<int> rightKeys[] = { { 696, 416 }, { 697, 448 }, { 699, 479 }, { 700, 512 }, { 702, 544 } };
+    const juce::Point<int> leftKeys[]  = { { 286, 409 }, { 284, 444 }, { 280, 478 }, { 279, 512 }, { 277, 547 } };
+    const juce::Point<int> rightKeys[] = { { 705, 409 }, { 706, 444 }, { 708, 478 }, { 709, 513 }, { 711, 547 } };
     keyOpen.setBounds    (juce::Rectangle<int> (39, 26).withPosition (leftKeys[0]));     // 1
     keyPlay.setBounds    (juce::Rectangle<int> (39, 26).withPosition (leftKeys[1]));     // 2
     keyHistory.setBounds (juce::Rectangle<int> (39, 26).withPosition (leftKeys[2]));     // 3
@@ -1530,13 +1514,13 @@ void AudioToMidiEditor::layoutContent()
     keyTelegram.setBounds (juce::Rectangle<int> (39, 26).withPosition (rightKeys[4]));   // 10
     applyKeyPage();
 
-    receipt.setBounds (265, 650, 137, 98);
-    card.setBounds (615, 646, 150, 148);
-    keypad.setBounds (400, 740, 210, 125);
+    receipt.setBounds (258, 648, 144, 100);
+    card.setBounds (615, 646, 160, 170);
+    keypad.setBounds (396, 736, 228, 148);
     dragHandle.setBounds (300, 930, 430, 170);
 
-    panel.setBounds (250, 1128, 524, 362);          // centred in the cabinet (its middle is x = 512)
-    history.setBounds (250, 1128, 524, 362);
+    panel.setBounds (250, 1130, 524, 340);          // centred in the cabinet (its middle is x = 512)
+    history.setBounds (250, 1130, 524, 340);
 }
 
 void AudioToMidiEditor::applyTheme (bool dark)
@@ -1557,9 +1541,15 @@ void AudioToMidiEditor::showHistory (bool show)
     if (show)
         history.refresh();
     history.setVisible (show);
-    panel.setVisible (settingsOn && ! show);
+    applyPanelVisibility();
     if (show)
         history.toFront (false);
+}
+
+// The settings are shown only once there is a result to tune (and the person has not hidden them)
+void AudioToMidiEditor::applyPanelVisibility()
+{
+    panel.setVisible (settingsOn && hasResult && ! history.isVisible());
 }
 
 void AudioToMidiEditor::relocalise()
@@ -1571,7 +1561,7 @@ void AudioToMidiEditor::relocalise()
     keySettings.setTooltip (tr ("Show / hide the Advanced Settings"));
     keyTelegram.setTooltip (tr ("COTERIA on Telegram"));
     signLink.setTooltip (tr ("COTERIA on Telegram"));
-    keySolo.setTooltip (tr ("Solo instrument preset (one guitar, piano...): fewer extra notes. Sets Note sensitivity 0.60 and Split sensitivity 0.30"));
+    keySolo.setTooltip (tr ("Live instrument preset (guitar, piano, acoustic): fewer extra notes. Sets Note sensitivity 0.60 and Split sensitivity 0.30. For electronic music and vocals the defaults work better"));
     keyNext.setTooltip (tr ("Next / previous page of keys"));
     keyReset.setTooltip (tr ("Reset the settings to defaults"));
     keyStart.setTooltip (tr ("MIDI position: keep the position the notes have in the audio / start the first note at 0 of the grid"));
@@ -1604,7 +1594,7 @@ void AudioToMidiEditor::toggleSettings()
     else
     {
         settingsOn = ! settingsOn;
-        panel.setVisible (settingsOn);
+        applyPanelVisibility();
     }
     updateSoftLabels();
 }
@@ -1640,7 +1630,7 @@ void AudioToMidiEditor::updateSoftLabels()
     const juce::String tg = update ? tr ("UPDATE!") : juce::String ("TELEGRAM");
     roll.setSoftLabels ({ tr ("OPEN"), tr (processor.isPlaying() ? "STOP" : "PLAY"), tr ("HISTORY"), tr ("SETTINGS"), {} },
                         page2 ? std::vector<juce::String> { tr ("THEME"), lang::isRu() ? juce::String::fromUTF8 ("ЯЗЫК: RU") : juce::String ("LANG: EN"), {}, tr ("BACK"), tg }
-                              : std::vector<juce::String> { tr (startZero ? "START: 0" : "START: AUDIO"), tr ("SOLO"), tr ("RESET"), tr ("NEXT"), tg });
+                              : std::vector<juce::String> { tr (startZero ? "START: 0" : "START: AUDIO"), tr ("LIVE"), tr ("RESET"), tr ("NEXT"), tg });
 }
 
 void AudioToMidiEditor::updateReceipt()
@@ -1651,6 +1641,12 @@ void AudioToMidiEditor::updateReceipt()
     printedVersion = v;
 
     const auto notes = processor.getNotesSnapshot();
+    const bool nowHas = ! notes.empty();
+    if (nowHas != hasResult)
+    {
+        hasResult = nowHas;
+        applyPanelVisibility();
+    }
     if (notes.empty())
     {
         printedTrack = {};
@@ -1663,7 +1659,7 @@ void AudioToMidiEditor::updateReceipt()
     ReceiptData d;
     d.valid = true;
     d.track = processor.getLastMidiFile().getFileNameWithoutExtension();
-    d.bpm = processor.getMidiBpm();
+    d.bpm = processor.getTrackBpm();
     d.notes = (int) notes.size();
     d.seconds = processor.getTotalSeconds();
     d.when = juce::Time::getCurrentTime();

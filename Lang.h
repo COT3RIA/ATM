@@ -54,7 +54,7 @@ namespace lang
 
             // keys on the screen
             add ("OPEN", "ОТКРЫТЬ");        add ("PLAY", "ИГРАТЬ");        add ("STOP", "СТОП");
-            add ("HISTORY", "ИСТОРИЯ");     add ("SETTINGS", "НАСТРОЙКИ"); add ("SOLO", "СОЛО");
+            add ("HISTORY", "ИСТОРИЯ");     add ("SETTINGS", "НАСТРОЙКИ"); add ("LIVE", "LIVE");
             add ("RESET", "СБРОС");         add ("NEXT", "ДАЛЕЕ");         add ("BACK", "НАЗАД");
             add ("THEME", "ТЕМА");          add ("UPDATE!", "ОБНОВИТЬ!");  add ("LANG: EN", "ЯЗЫК: RU");
             add ("LANG: RU", "ЯЗЫК: RU");   add ("START: 0", "СТАРТ: 0");  add ("START: AUDIO", "СТАРТ: АУДИО");
@@ -66,8 +66,8 @@ namespace lang
             add ("Dark / light theme of the panels", "Тёмная / светлая тема панелей");
             add ("Show / hide the Advanced Settings", "Показать / скрыть расширенные настройки");
             add ("COTERIA on Telegram", "COTERIA в Telegram");
-            add ("Solo instrument preset (one guitar, piano...): fewer extra notes. Sets Note sensitivity 0.60 and Split sensitivity 0.30",
-                 "Пресет для одного инструмента (гитара, пианино...): меньше лишних нот. Ставит чувствительность нот 0.60 и разделение нот 0.30");
+            add ("Live instrument preset (guitar, piano, acoustic): fewer extra notes. Sets Note sensitivity 0.60 and Split sensitivity 0.30. For electronic music and vocals the defaults work better",
+                 "Пресет для живых инструментов (гитара, пианино, акустика): меньше лишних нот. Ставит чувствительность нот 0.60 и разделение нот 0.30. Для электронной музыки и вокала лучше настройки по умолчанию");
             add ("Next / previous page of keys", "Следующая / предыдущая страница кнопок");
             add ("Reset the settings to defaults", "Сбросить настройки по умолчанию");
             add ("MIDI position: keep the position the notes have in the audio / start the first note at 0 of the grid",
