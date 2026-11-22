@@ -60,6 +60,7 @@ public:
 
     // --- Conversion API (message thread) ---
     void loadAudioFile (const juce::File& file);   // decode + analyse + convert
+    void clearAll();                                // forget the loaded audio, the notes and the MIDI file (the RESET key)
     void requestReconvert();                        // re-run with current settings on the analysed audio
     bool hasAudio() const;
     bool isBusy() const { return busy.load(); }

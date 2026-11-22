@@ -311,6 +311,35 @@ void AudioToMidiProcessor::loadAudioFile (const juce::File& file)
     startJob (file, true);
 }
 
+void AudioToMidiProcessor::clearAll()
+{
+    ++generation;                                // cancels a running conversion
+    dirtyCountdown = 0;
+    playing = false;
+    stopFlush = true;
+
+    {
+        const juce::ScopedLock sl (dataLock);
+        spectrogram.reset();
+        audioFile = juce::File();
+    }
+    {
+        const juce::SpinLock::ScopedLockType sl (noteLock);
+        notes.clear();
+    }
+    {
+        const juce::ScopedLock sl (infoLock);
+        lastMidiFile = juce::File();
+        keyInfo = {};
+        statusInfo = StatusInfo();
+    }
+    totalSeconds = 0.0;
+    detectedBpm = 0.0;
+    tempoFromHost = false;
+    busy = false;
+    ++notesVersion;
+}
+
 void AudioToMidiProcessor::requestReconvert()
 {
     if (hasAudio())

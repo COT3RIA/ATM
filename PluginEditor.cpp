@@ -686,6 +686,235 @@ void MidiDragHandle::mouseDrag (const juce::MouseEvent& e)
 }
 
 //==============================================================================
+// Receipt
+static juce::Font monoFont (float h, bool bold = false)
+{
+    return juce::Font (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), h, bold ? juce::Font::bold : juce::Font::plain));
+}
+
+static juce::String fitText (juce::String s, int maxChars)
+{
+    return s.length() > maxChars ? s.substring (0, maxChars - 1) + juce::String::charToString ((juce::juce_wchar) 0x2026) : s;
+}
+
+void ReceiptPaper::setData (const ReceiptData& d, bool print)
+{
+    data = d;
+    if (print)
+    {
+        progress = 0.0f;
+        stepTicks = 0;
+    }
+    setTooltip (tr ("Drag the receipt out as a picture"));
+    setInterceptsMouseClicks (d.valid, false);
+    repaint();
+}
+
+void ReceiptPaper::clear()
+{
+    data = ReceiptData();
+    progress = 1.0f;
+    setInterceptsMouseClicks (false, false);
+    repaint();
+}
+
+void ReceiptPaper::tick()
+{
+    if (! isPrinting())
+        return;
+
+    // the printer pushes the paper out in small jerks
+    if (++stepTicks % 2 == 0)
+    {
+        progress = std::min (1.0f, progress + 0.055f);
+        repaint();
+    }
+}
+
+void ReceiptPaper::paint (juce::Graphics& g)
+{
+    if (! data.valid || progress <= 0.0f)
+        return;
+
+    const float slotY = 9.0f, paperX = 8.0f, paperW = 80.0f, stripH = 100.0f;
+    const float bottom = slotY + progress * stripH;
+    const float top = bottom - stripH;
+
+    g.reduceClipRegion (0, (int) slotY, getWidth(), getHeight());          // everything above the slot is "inside the machine"
+
+    juce::Path paper;
+    paper.startNewSubPath (paperX, top);
+    paper.lineTo (paperX + paperW, top);
+    paper.lineTo (paperX + paperW, bottom - 4.0f);
+    const int teeth = 14;
+    for (int i = 0; i < teeth; ++i)
+    {
+        const float x1 = paperX + paperW - (i + 0.5f) * paperW / teeth, x2 = paperX + paperW - (i + 1.0f) * paperW / teeth;
+        paper.lineTo (x1, bottom);
+        paper.lineTo (x2, bottom - 4.0f);
+    }
+    paper.closeSubPath();
+
+    g.setColour (juce::Colours::black.withAlpha (0.35f));
+    g.fillPath (paper, juce::AffineTransform::translation (2.0f, 3.0f));
+    g.setGradientFill (juce::ColourGradient (juce::Colour (0xfffbf8ef), paperX, 0.0f, juce::Colour (0xffe3dfd2), paperX + paperW, 0.0f, false));
+    g.fillPath (paper);
+
+    g.saveState();
+    g.reduceClipRegion (paper);
+
+    auto line = [&] (const juce::String& l, const juce::String& r, float y, float fh, bool bold)
+    {
+        g.setFont (monoFont (fh, bold));
+        g.setColour (juce::Colour (0xff2a2a2a));
+        g.drawText (l, juce::Rectangle<float> (paperX + 4.0f, top + y, paperW - 8.0f, fh + 2.0f), juce::Justification::centredLeft, false);
+        if (r.isNotEmpty())
+            g.drawText (r, juce::Rectangle<float> (paperX + 4.0f, top + y, paperW - 8.0f, fh + 2.0f), juce::Justification::centredRight, false);
+    };
+    auto dashes = [&] (float y)
+    {
+        g.setColour (juce::Colour (0xff6a6a6a));
+        for (float x = paperX + 4.0f; x < paperX + paperW - 4.0f; x += 4.0f)
+            g.fillRect (x, top + y, 2.2f, 0.8f);
+    };
+
+    g.setFont (monoFont (11.0f, true));
+    g.setColour (juce::Colour (0xff1a1a1a));
+    g.drawText ("COTERIA", juce::Rectangle<float> (paperX, top + 4.0f, paperW, 12.0f), juce::Justification::centred, false);
+    line ("ATM " + tr ("RECEIPT"), {}, 16.0f, 6.5f, false);
+    dashes (26.0f);
+    line ("BPM", juce::String (juce::roundToInt (data.bpm)), 29.0f, 7.5f, true);
+    line (tr ("KEY"), data.key, 39.0f, 7.5f, true);
+    line (tr ("NOTES"), juce::String (data.notes), 49.0f, 7.5f, true);
+    line (tr ("LENGTH"), juce::String ((int) data.seconds / 60) + ":" + juce::String ((int) data.seconds % 60).paddedLeft ('0', 2), 59.0f, 7.5f, true);
+    dashes (70.0f);
+
+    // barcode from the track name
+    uint32_t hsh = (uint32_t) data.track.hashCode();
+    g.setColour (juce::Colour (0xff1a1a1a));
+    float x = paperX + 8.0f;
+    while (x < paperX + paperW - 9.0f)
+    {
+        hsh = hsh * 1664525u + 1013904223u;
+        const float w = 0.8f + (float) ((hsh >> 24) % 3) * 0.7f;
+        g.fillRect (x, top + 74.0f, w, 12.0f);
+        x += w + 0.9f + (float) ((hsh >> 20) % 2) * 0.7f;
+    }
+    g.restoreState();
+}
+
+void ReceiptPaper::paintFull (juce::Graphics& g, juce::Rectangle<float> area, const ReceiptData& d)
+{
+    const float s = area.getWidth() / 300.0f;
+    g.addTransform (juce::AffineTransform::scale (s).translated (area.getX(), area.getY()));
+
+    const float W = 300.0f, H = area.getHeight() / s;
+    // paper with serrated top and bottom
+    juce::Path p;
+    const int teeth = 25;
+    p.startNewSubPath (0.0f, 8.0f);
+    for (int i = 0; i < teeth; ++i) { p.lineTo ((i + 0.5f) * W / teeth, 0.0f); p.lineTo ((i + 1.0f) * W / teeth, 8.0f); }
+    p.lineTo (W, H - 8.0f);
+    for (int i = 0; i < teeth; ++i) { p.lineTo (W - (i + 0.5f) * W / teeth, H); p.lineTo (W - (i + 1.0f) * W / teeth, H - 8.0f); }
+    p.closeSubPath();
+    g.setGradientFill (juce::ColourGradient (juce::Colour (0xfffbf8ef), 0.0f, 0.0f, juce::Colour (0xffe9e5d8), W, 0.0f, false));
+    g.fillPath (p);
+    g.reduceClipRegion (p);
+
+    const auto ink = juce::Colour (0xff1c1c1c);
+    float y = 26.0f;
+    g.setColour (ink);
+    g.setFont (monoFont (34.0f, true));
+    g.drawText ("COTERIA", juce::Rectangle<float> (0.0f, y, W, 40.0f), juce::Justification::centred, false);
+    y += 40.0f;
+    g.setFont (monoFont (13.0f));
+    g.drawText ("ATM  -  AUDIO TO MIDI", juce::Rectangle<float> (0.0f, y, W, 16.0f), juce::Justification::centred, false);
+    y += 26.0f;
+
+    auto dashes = [&]
+    {
+        g.setColour (juce::Colour (0xff7a7a7a));
+        for (float x = 18.0f; x < W - 18.0f; x += 8.0f) g.fillRect (x, y, 4.5f, 1.4f);
+        y += 16.0f;
+    };
+    auto row = [&] (const juce::String& l, const juce::String& r, bool bold = true)
+    {
+        g.setColour (ink);
+        g.setFont (monoFont (16.0f, bold));
+        g.drawText (l, juce::Rectangle<float> (18.0f, y, W - 36.0f, 20.0f), juce::Justification::centredLeft, false);
+        g.drawText (r, juce::Rectangle<float> (18.0f, y, W - 36.0f, 20.0f), juce::Justification::centredRight, false);
+        y += 26.0f;
+    };
+
+    dashes();
+    row (tr ("TRACK"), {});
+    g.setFont (monoFont (14.0f));
+    g.setColour (ink);
+    g.drawFittedText (d.track, juce::Rectangle<int> (18, (int) y - 8, (int) W - 36, 38), juce::Justification::topLeft, 2, 0.9f);
+    y += 40.0f;
+    row (tr ("DATE"), d.when.formatted ("%d.%m.%Y  %H:%M"), false);
+    dashes();
+    row ("BPM", juce::String (juce::roundToInt (d.bpm)));
+    row (tr ("KEY"), d.key);
+    row (tr ("NOTES"), juce::String (d.notes));
+    row (tr ("LENGTH"), juce::String ((int) d.seconds / 60) + ":" + juce::String ((int) d.seconds % 60).paddedLeft ('0', 2));
+    dashes();
+
+    g.setColour (ink);
+    g.setFont (monoFont (20.0f, true));
+    g.drawText (tr ("THANK YOU!"), juce::Rectangle<float> (0.0f, y, W, 26.0f), juce::Justification::centred, false);
+    y += 40.0f;
+
+    uint32_t hsh = (uint32_t) d.track.hashCode();
+    float x = 30.0f;
+    while (x < W - 32.0f)
+    {
+        hsh = hsh * 1664525u + 1013904223u;
+        const float w = 1.6f + (float) ((hsh >> 24) % 3) * 1.4f;
+        g.fillRect (x, y, w, 44.0f);
+        x += w + 2.0f + (float) ((hsh >> 20) % 2) * 1.4f;
+    }
+    y += 52.0f;
+    g.setFont (monoFont (11.0f));
+    g.drawText ("COTERIA", juce::Rectangle<float> (0.0f, y, W, 14.0f), juce::Justification::centred, false);
+}
+
+juce::File ReceiptPaper::makePicture (const ReceiptData& d)
+{
+    const int pxW = 720, pxH = 1100;
+    juce::Image img (juce::Image::ARGB, pxW, pxH, true);
+    {
+        juce::Graphics g (img);
+        paintFull (g, juce::Rectangle<float> (0.0f, 0.0f, (float) pxW, (float) pxH), d);
+    }
+    // crop to the paper: the layout is 300 x (1100 / 2.4) units
+    const auto dir = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("ATM");
+    dir.createDirectory();
+    auto name = juce::File::createLegalFileName (d.track).trim();
+    if (name.isEmpty()) name = "track";
+    const auto f = dir.getChildFile ("ATM receipt - " + name + ".png");
+    f.deleteFile();
+    juce::FileOutputStream out (f);
+    if (out.openedOk())
+    {
+        out.setPosition (0);
+        out.truncate();
+        juce::PNGImageFormat().writeImageToStream (img, out);
+    }
+    return f;
+}
+
+void ReceiptPaper::mouseDrag (const juce::MouseEvent& e)
+{
+    if (! data.valid || e.getDistanceFromDragStart() < 6)
+        return;
+
+    const auto f = makePicture (data);
+    if (f.existsAsFile())
+        juce::DragAndDropContainer::performExternalDragDropOfFiles ({ f.getFullPathName() }, false, this);
+}
+
+//==============================================================================
 // History panel
 HistoryPanel::HistoryPanel (AudioToMidiProcessor& p) : processor (p)
 {
@@ -1111,6 +1340,7 @@ AudioToMidiEditor::AudioToMidiEditor (AudioToMidiProcessor& p)
     content.addAndMakeVisible (roll);
     content.addAndMakeVisible (signGlow);
     content.addAndMakeVisible (signLink);
+    content.addAndMakeVisible (receiptPaper);
     for (auto* k : { &keyOpen, &keyPlay, &keyHistory, &keySettings, &keySolo, &keyStart, &keyTheme, &keyReset, &keyTelegram, &keyNext, &keyLang })
         content.addAndMakeVisible (*k);
     content.addAndMakeVisible (receipt);
@@ -1138,7 +1368,14 @@ AudioToMidiEditor::AudioToMidiEditor (AudioToMidiProcessor& p)
     keyNext.onClick = [this] { page2 = ! page2; applyKeyPage(); updateSoftLabels(); };
     keySolo.onClick = [this] { processor.toggleSoloPreset(); updateSoftLabels(); };
     keySettings.onClick = [this] { toggleSettings(); };
-    keyReset.onClick   = [this] { panel.resetDefaults(); };
+    keyReset.onClick   = [this]
+    {
+        processor.clearAll();                    // empty the screen and the MIDI slot first ...
+        if (history.isVisible())
+            showHistory (false);
+        panel.resetDefaults();                  // ... then the settings go back to their defaults
+        updateSoftLabels();
+    };
     keyStart.onClick   = [this]
     {
         if (auto* prm = processor.apvts.getParameter (ids::startZero))
@@ -1202,6 +1439,7 @@ void AudioToMidiEditor::layoutContent()
     roll.setBounds (348, 364, 331, 221);
 
     signGlow.setBounds (288, 36, 448, 160);
+    receiptPaper.setBounds (285, 705, 96, 114);
     signLink.setBounds (301, 49, 421, 136);         // the blue panel of the sign
 
     // the keys beside the screen stand on an arc: their real positions in the picture (x, y of each 39 x 26 key)
@@ -1334,8 +1572,40 @@ void AudioToMidiEditor::updateSoftLabels()
                               : std::vector<juce::String> { tr (startZero ? "START: 0" : "START: AUDIO"), tr ("SOLO"), tr ("RESET"), tr ("NEXT"), tg });
 }
 
+void AudioToMidiEditor::updateReceipt()
+{
+    const int v = processor.getNotesVersion();
+    if (v == printedVersion || processor.isBusy())
+        return;
+    printedVersion = v;
+
+    const auto notes = processor.getNotesSnapshot();
+    if (notes.empty())
+    {
+        printedTrack = {};
+        receiptPaper.clear();
+        return;
+    }
+
+    ReceiptData d;
+    d.valid = true;
+    d.track = processor.getLastMidiFile().getFileNameWithoutExtension();
+    d.bpm = processor.getMidiBpm();
+    d.notes = (int) notes.size();
+    d.seconds = processor.getTotalSeconds();
+    d.when = juce::Time::getCurrentTime();
+    const auto key = processor.getKeyInfo();
+    d.key = key.valid ? juce::String (a2m::keyName (key.tonic)) + tr (key.minor ? " min" : " maj") : juce::String ("--");
+
+    const bool print = d.track != printedTrack;           // a new track prints a new receipt; a settings change only updates it
+    printedTrack = d.track;
+    receiptPaper.setData (d, print);
+}
+
 void AudioToMidiEditor::timerCallback()
 {
+    updateReceipt();
+    receiptPaper.tick();
     roll.setStatus (processor.getStatusText());
     updateSoftLabels();
 

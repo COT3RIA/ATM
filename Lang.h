@@ -82,6 +82,10 @@ namespace lang
             add ("Choose the folder for generated MIDI files", "Выберите папку для MIDI-файлов");
             add ("Choose an audio file", "Выберите аудиофайл");
 
+            // receipt
+            add ("RECEIPT", "ЧЕК");  add ("TRACK", "ТРЕК");
+            add ("Drag the receipt out as a picture", "Перетащите чек как картинку");
+
             // screen
             add ("Drop audio here", "Перетащите аудио сюда");
             add ("Converting...", "Конвертация...");
@@ -103,6 +107,12 @@ namespace lang
             add ("Infer Onsets", "Атаки");  add ("Smoothing", "Сглаж.");  add ("Updates", "Обновл.");
             add ("Play", "Играть");  add ("Stop", "Стоп");  add ("Reset to defaults", "Сбросить");
             add ("KEY", "ТОН");  add (" min", " мин");  add (" maj", " маж");
+
+            // receipt
+            add ("FILE", "ФАЙЛ");  add ("TEMPO", "ТЕМП");  add ("NOTES", "НОТЫ");  add ("LENGTH", "ДЛИНА");
+            add ("SENS", "ЧУВСТВ.");  add ("SURE", "УВЕРЕН.");  add ("DATE", "ДАТА");  add ("THANK YOU!", "СПАСИБО!");
+            add ("Drag the receipt to share it. Click to close.", "Перетащите чек, чтобы поделиться. Нажмите, чтобы закрыть.");
+            add ("Click to enlarge the receipt", "Нажмите, чтобы увеличить чек");
 
             // processor messages
             add ("Drop an audio file (MP3 / WAV / FLAC) onto the window", "Перетащите аудиофайл (MP3 / WAV / FLAC) в окно");

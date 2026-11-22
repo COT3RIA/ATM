@@ -123,6 +123,37 @@ private:
     float level = 0.0f;
 };
 
+// The receipt printed by the RECEIPT slot after every new conversion. It can be dragged out as a picture.
+struct ReceiptData
+{
+    bool valid = false;
+    juce::String track, key;
+    double bpm = 0.0, seconds = 0.0;
+    int notes = 0;
+    juce::Time when;
+};
+
+class ReceiptPaper : public juce::Component, public juce::SettableTooltipClient
+{
+public:
+    ReceiptPaper() { setInterceptsMouseClicks (false, false); }
+
+    void setData (const ReceiptData& d, bool print);     // print = start the animation
+    void clear();
+    void tick();                                         // 30 Hz
+    bool isPrinting() const noexcept { return progress < 1.0f && data.valid; }
+    void paint (juce::Graphics&) override;
+    void mouseDrag (const juce::MouseEvent&) override;
+
+    static void paintFull (juce::Graphics&, juce::Rectangle<float> area, const ReceiptData&);   // the shareable picture
+    static juce::File makePicture (const ReceiptData&);
+
+private:
+    ReceiptData data;
+    float progress = 1.0f;                               // 0 = nothing out of the slot, 1 = fully out
+    int stepTicks = 0;
+};
+
 // Invisible clickable area (the "ATM" sign): opens the COTERIA Telegram link
 class SignLink : public juce::Component, public juce::SettableTooltipClient
 {
@@ -331,6 +362,10 @@ private:
     StatusLed led;
     SignGlow signGlow;
     SignLink signLink;
+    ReceiptPaper receiptPaper;
+    juce::String printedTrack;
+    int printedVersion = -1;
+    void updateReceipt();
     NoteRoll roll;                                      // the ATM screen
     HwButton keyOpen, keyPlay, keyHistory, keySettings, keySolo, keyStart, keyTheme, keyReset, keyTelegram, keyNext, keyLang;   // keys beside the screen (left 1-3, right 1, 4, 5)
     HwButton receipt;                                   // history
