@@ -705,7 +705,7 @@ void ReceiptPaper::setData (const ReceiptData& d, bool print)
         progress = 0.0f;
         stepTicks = 0;
     }
-    setTooltip (tr ("Drag the receipt out as a picture"));
+    setTooltip (tr ("Click to enlarge the receipt"));
     setInterceptsMouseClicks (d.valid, false);
     repaint();
 }
@@ -736,7 +736,7 @@ void ReceiptPaper::paint (juce::Graphics& g)
     if (! data.valid || progress <= 0.0f)
         return;
 
-    const float slotY = 9.0f, paperX = 8.0f, paperW = 80.0f, stripH = 100.0f;
+    const float slotY = 9.0f, paperX = 6.0f, paperW = 100.0f, stripH = 124.0f;
     const float bottom = slotY + progress * stripH;
     const float top = bottom - stripH;
 
@@ -778,16 +778,20 @@ void ReceiptPaper::paint (juce::Graphics& g)
             g.fillRect (x, top + y, 2.2f, 0.8f);
     };
 
-    g.setFont (monoFont (11.0f, true));
+    g.setFont (monoFont (14.0f, true));
     g.setColour (juce::Colour (0xff1a1a1a));
-    g.drawText ("COTERIA", juce::Rectangle<float> (paperX, top + 4.0f, paperW, 12.0f), juce::Justification::centred, false);
-    line ("ATM " + tr ("RECEIPT"), {}, 16.0f, 6.5f, false);
-    dashes (26.0f);
-    line ("BPM", juce::String (juce::roundToInt (data.bpm)), 29.0f, 7.5f, true);
-    line (tr ("KEY"), data.key, 39.0f, 7.5f, true);
-    line (tr ("NOTES"), juce::String (data.notes), 49.0f, 7.5f, true);
-    line (tr ("LENGTH"), juce::String ((int) data.seconds / 60) + ":" + juce::String ((int) data.seconds % 60).paddedLeft ('0', 2), 59.0f, 7.5f, true);
-    dashes (70.0f);
+    g.drawText ("COTERIA", juce::Rectangle<float> (paperX, top + 4.0f, paperW, 15.0f), juce::Justification::centred, false);
+    line ("ATM " + tr ("RECEIPT"), {}, 20.0f, 8.0f, false);
+    dashes (31.0f);
+    g.setFont (monoFont (9.5f, false));
+    g.setColour (juce::Colour (0xff2a2a2a));
+    g.drawText (fitText (data.track, 15), juce::Rectangle<float> (paperX + 4.0f, top + 35.0f, paperW - 8.0f, 12.0f), juce::Justification::centred, false);
+    dashes (49.0f);
+    line ("BPM", juce::String (juce::roundToInt (data.bpm)), 53.0f, 9.5f, true);
+    line (tr ("KEY"), data.key, 65.0f, 9.5f, true);
+    line (tr ("NOTES"), juce::String (data.notes), 77.0f, 9.5f, true);
+    line (tr ("LENGTH"), juce::String ((int) data.seconds / 60) + ":" + juce::String ((int) data.seconds % 60).paddedLeft ('0', 2), 89.0f, 9.5f, true);
+    dashes (103.0f);
 
     // barcode from the track name
     uint32_t hsh = (uint32_t) data.track.hashCode();
@@ -797,7 +801,7 @@ void ReceiptPaper::paint (juce::Graphics& g)
     {
         hsh = hsh * 1664525u + 1013904223u;
         const float w = 0.8f + (float) ((hsh >> 24) % 3) * 0.7f;
-        g.fillRect (x, top + 74.0f, w, 12.0f);
+        g.fillRect (x, top + 107.0f, w, 12.0f);
         x += w + 0.9f + (float) ((hsh >> 20) % 2) * 0.7f;
     }
     g.restoreState();
@@ -904,14 +908,63 @@ juce::File ReceiptPaper::makePicture (const ReceiptData& d)
     return f;
 }
 
-void ReceiptPaper::mouseDrag (const juce::MouseEvent& e)
+void ReceiptPaper::mouseUp (const juce::MouseEvent& e)
 {
-    if (! data.valid || e.getDistanceFromDragStart() < 6)
-        return;
+    if (data.valid && e.mouseWasClicked() && onClick)
+        onClick();
+}
 
-    const auto f = makePicture (data);
+//==============================================================================
+ReceiptOverlay::ReceiptOverlay()
+{
+    setInterceptsMouseClicks (true, true);
+}
+
+void ReceiptOverlay::show (const ReceiptData& d)
+{
+    data = d;
+    setVisible (true);
+    toFront (false);
+    repaint();
+}
+
+juce::Rectangle<float> ReceiptOverlay::paperArea() const
+{
+    const float w = std::min (440.0f, (float) getWidth() - 60.0f);
+    const float h = w * 1100.0f / 720.0f;
+    return { ((float) getWidth() - w) * 0.5f, ((float) getHeight() - h) * 0.5f - 20.0f, w, h };
+}
+
+void ReceiptOverlay::paint (juce::Graphics& g)
+{
+    g.fillAll (juce::Colours::black.withAlpha (0.72f));
+    const auto r = paperArea();
+    g.setColour (juce::Colours::black.withAlpha (0.45f));
+    g.fillRect (r.translated (4.0f, 6.0f));
+    {
+        juce::Graphics::ScopedSaveState ss (g);
+        ReceiptPaper::paintFull (g, r, data);
+    }
+    g.setColour (juce::Colours::white.withAlpha (0.85f));
+    g.setFont (juce::FontOptions (22.0f));
+    g.drawText (tr ("Drag the receipt to share it. Click to close."), juce::Rectangle<float> (0.0f, r.getBottom() + 14.0f, (float) getWidth(), 30.0f), juce::Justification::centred, false);
+}
+
+void ReceiptOverlay::mouseDrag (const juce::MouseEvent& e)
+{
+    if (e.getDistanceFromDragStart() < 8 || ! paperArea().contains (e.getMouseDownPosition().toFloat()))
+        return;
+    dragged = true;
+    const auto f = ReceiptPaper::makePicture (data);
     if (f.existsAsFile())
         juce::DragAndDropContainer::performExternalDragDropOfFiles ({ f.getFullPathName() }, false, this);
+}
+
+void ReceiptOverlay::mouseUp (const juce::MouseEvent& e)
+{
+    if (e.mouseWasClicked() && ! dragged)
+        setVisible (false);
+    dragged = false;
 }
 
 //==============================================================================
@@ -1341,6 +1394,8 @@ AudioToMidiEditor::AudioToMidiEditor (AudioToMidiProcessor& p)
     content.addAndMakeVisible (signGlow);
     content.addAndMakeVisible (signLink);
     content.addAndMakeVisible (receiptPaper);
+    content.addChildComponent (receiptOverlay);
+    receiptPaper.onClick = [this] { if (currentReceipt.valid) receiptOverlay.show (currentReceipt); };
     for (auto* k : { &keyOpen, &keyPlay, &keyHistory, &keySettings, &keySolo, &keyStart, &keyTheme, &keyReset, &keyTelegram, &keyNext, &keyLang })
         content.addAndMakeVisible (*k);
     content.addAndMakeVisible (receipt);
@@ -1439,7 +1494,8 @@ void AudioToMidiEditor::layoutContent()
     roll.setBounds (348, 364, 331, 221);
 
     signGlow.setBounds (288, 36, 448, 160);
-    receiptPaper.setBounds (285, 705, 96, 114);
+    receiptPaper.setBounds (279, 705, 112, 150);
+    receiptOverlay.setBounds (0, 0, 1024, 1536);
     signLink.setBounds (301, 49, 421, 136);         // the blue panel of the sign
 
     // the keys beside the screen stand on an arc: their real positions in the picture (x, y of each 39 x 26 key)
@@ -1583,6 +1639,8 @@ void AudioToMidiEditor::updateReceipt()
     if (notes.empty())
     {
         printedTrack = {};
+        currentReceipt = ReceiptData();
+        receiptOverlay.setVisible (false);
         receiptPaper.clear();
         return;
     }
@@ -1599,6 +1657,7 @@ void AudioToMidiEditor::updateReceipt()
 
     const bool print = d.track != printedTrack;           // a new track prints a new receipt; a settings change only updates it
     printedTrack = d.track;
+    currentReceipt = d;
     receiptPaper.setData (d, print);
 }
 

@@ -143,7 +143,8 @@ public:
     void tick();                                         // 30 Hz
     bool isPrinting() const noexcept { return progress < 1.0f && data.valid; }
     void paint (juce::Graphics&) override;
-    void mouseDrag (const juce::MouseEvent&) override;
+    void mouseUp (const juce::MouseEvent&) override;
+    std::function<void()> onClick;
 
     static void paintFull (juce::Graphics&, juce::Rectangle<float> area, const ReceiptData&);   // the shareable picture
     static juce::File makePicture (const ReceiptData&);
@@ -152,6 +153,21 @@ private:
     ReceiptData data;
     float progress = 1.0f;                               // 0 = nothing out of the slot, 1 = fully out
     int stepTicks = 0;
+};
+
+// Enlarged receipt shown inside the plugin window (never outside it); drag the paper out to share the picture
+class ReceiptOverlay : public juce::Component
+{
+public:
+    ReceiptOverlay();
+    void show (const ReceiptData&);
+    void paint (juce::Graphics&) override;
+    void mouseDrag (const juce::MouseEvent&) override;
+    void mouseUp (const juce::MouseEvent&) override;
+private:
+    juce::Rectangle<float> paperArea() const;
+    ReceiptData data;
+    bool dragged = false;
 };
 
 // Invisible clickable area (the "ATM" sign): opens the COTERIA Telegram link
@@ -363,6 +379,8 @@ private:
     SignGlow signGlow;
     SignLink signLink;
     ReceiptPaper receiptPaper;
+    ReceiptOverlay receiptOverlay;
+    ReceiptData currentReceipt;
     juce::String printedTrack;
     int printedVersion = -1;
     void updateReceipt();

@@ -27,7 +27,7 @@ The window is an ATM; every part of it works:
   The MIDI folder is set with "Set MIDI folder..." in the settings panel. The "ATM" sign at the top is an invisible link to the same page.
 * **Card reader**: insert the audio file here - click it or drop a file on the window. It blinks amber while converting.
 * **Receipt printer**: opens the **History** of all MIDI files the plugin has written (drag them into the DAW).
-  After every conversion of a new track the printer slot also pushes out a paper **receipt** (track, BPM, key, notes, length, COTERIA logo). Drag the paper out of the slot onto your desktop or into a chat to share it as a PNG picture. RESET removes it.
+  After every conversion of a new track the printer slot also pushes out a small paper **receipt** (track, BPM, key, notes, length). Click it to open it enlarged inside the plugin window; drag the enlarged paper out onto your desktop or into a chat to share it as a PNG, click anywhere to close. RESET removes it.
 * **Numeric pad**: ENTER = play / stop, CANCEL = stop, CLEAR = close the history.
 * **MIDI slot**: the finished file sticks out like a ticket - drag it into your DAW.
 * **Lower cabinet**: the Advanced Settings. Besides the slider, every value can be typed: click the number on the right, enter a value (e.g. 0.6 or 250), press Enter; values outside the range are clamped.
