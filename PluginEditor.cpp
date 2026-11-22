@@ -883,7 +883,7 @@ void ReceiptPaper::paintFull (juce::Graphics& g, juce::Rectangle<float> area, co
     g.drawText ("COTERIA", juce::Rectangle<float> (0.0f, y, W, 14.0f), juce::Justification::centred, false);
 }
 
-juce::File ReceiptPaper::makePicture (const ReceiptData& d)
+juce::File ReceiptPaper::makePicture (const ReceiptData& d, const juce::File& folder)
 {
     const int pxW = 720, pxH = 1100;
     juce::Image img (juce::Image::ARGB, pxW, pxH, true);
@@ -892,7 +892,7 @@ juce::File ReceiptPaper::makePicture (const ReceiptData& d)
         paintFull (g, juce::Rectangle<float> (0.0f, 0.0f, (float) pxW, (float) pxH), d);
     }
     // crop to the paper: the layout is 300 x (1100 / 2.4) units
-    const auto dir = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("ATM");
+    const auto dir = folder;
     dir.createDirectory();
     auto name = juce::File::createLegalFileName (d.track).trim();
     if (name.isEmpty()) name = "track";
@@ -923,6 +923,7 @@ ReceiptOverlay::ReceiptOverlay()
 void ReceiptOverlay::show (const ReceiptData& d)
 {
     data = d;
+    saved = juce::File();
     setVisible (true);
     toFront (false);
     repaint();
@@ -947,24 +948,29 @@ void ReceiptOverlay::paint (juce::Graphics& g)
     }
     g.setColour (juce::Colours::white.withAlpha (0.85f));
     g.setFont (juce::FontOptions (22.0f));
-    g.drawText (tr ("Drag the receipt to share it. Click to close."), juce::Rectangle<float> (0.0f, r.getBottom() + 14.0f, (float) getWidth(), 30.0f), juce::Justification::centred, false);
-}
-
-void ReceiptOverlay::mouseDrag (const juce::MouseEvent& e)
-{
-    if (e.getDistanceFromDragStart() < 8 || ! paperArea().contains (e.getMouseDownPosition().toFloat()))
-        return;
-    dragged = true;
-    const auto f = ReceiptPaper::makePicture (data);
-    if (f.existsAsFile())
-        juce::DragAndDropContainer::performExternalDragDropOfFiles ({ f.getFullPathName() }, false, this);
+    g.drawText (saved.existsAsFile() ? tr ("Saved: ") + saved.getFileName() : tr ("Click the receipt to save it as a picture. Click outside to close."),
+                juce::Rectangle<float> (0.0f, r.getBottom() + 14.0f, (float) getWidth(), 30.0f), juce::Justification::centred, false);
 }
 
 void ReceiptOverlay::mouseUp (const juce::MouseEvent& e)
 {
-    if (e.mouseWasClicked() && ! dragged)
-        setVisible (false);
-    dragged = false;
+    if (! e.mouseWasClicked())
+        return;
+
+    if (paperArea().contains (e.getPosition().toFloat()) && folder)
+    {
+        // saving instead of dragging: a dragged picture dropped onto a DAW grid gets stuck there as a clip
+        const auto f = ReceiptPaper::makePicture (data, folder());
+        if (f.existsAsFile())
+        {
+            saved = f;
+            f.revealToUser();
+            repaint();
+        }
+        return;
+    }
+    saved = juce::File();
+    setVisible (false);
 }
 
 //==============================================================================
@@ -1153,10 +1159,18 @@ void KeyReadout::paint (juce::Graphics& g)
     const juce::String bpmText = key.valid ? juce::String (juce::roundToInt (bpm)) : juce::String ("--");
 
     const juce::String line = "BPM " + bpmText + "  " + juce::String::charToString ((juce::juce_wchar) 0xb7) + "  " + tr ("KEY") + " " + keyText;
-    const juce::Font font (juce::FontOptions (17.0f, juce::Font::bold));
-    juce::GlyphArrangement ga;
-    ga.addLineOfText (font, line, 0.0f, 0.0f);
-    const float tw = std::ceil (ga.getBoundingBox (0, -1, true).getWidth());
+    // shrink the font until the whole line fits the component (longest case: Russian "ТОН D# мин")
+    float fh = 17.0f, tw = 0.0f;
+    juce::Font font (juce::FontOptions (fh, juce::Font::bold));
+    for (;; fh -= 0.5f)
+    {
+        font = juce::Font (juce::FontOptions (fh, juce::Font::bold));
+        juce::GlyphArrangement ga;
+        ga.addLineOfText (font, line, 0.0f, 0.0f);
+        tw = std::ceil (ga.getBoundingBox (0, -1, true).getWidth());
+        if (tw + 6.0f <= r.getWidth() || fh <= 9.0f)
+            break;
+    }
 
     auto top = r.removeFromTop (22.0f);
     g.setColour (pal.text);
@@ -1395,6 +1409,7 @@ AudioToMidiEditor::AudioToMidiEditor (AudioToMidiProcessor& p)
     content.addAndMakeVisible (signLink);
     content.addAndMakeVisible (receiptPaper);
     content.addChildComponent (receiptOverlay);
+    receiptOverlay.folder = [this] { return processor.getMidiFolder().getChildFile ("Receipts"); };
     receiptPaper.onClick = [this] { if (currentReceipt.valid) receiptOverlay.show (currentReceipt); };
     for (auto* k : { &keyOpen, &keyPlay, &keyHistory, &keySettings, &keySolo, &keyStart, &keyTheme, &keyReset, &keyTelegram, &keyNext, &keyLang })
         content.addAndMakeVisible (*k);

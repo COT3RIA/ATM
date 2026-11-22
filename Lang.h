@@ -112,6 +112,8 @@ namespace lang
             add ("FILE", "ФАЙЛ");  add ("TEMPO", "ТЕМП");  add ("NOTES", "НОТЫ");  add ("LENGTH", "ДЛИНА");
             add ("SENS", "ЧУВСТВ.");  add ("SURE", "УВЕРЕН.");  add ("DATE", "ДАТА");  add ("THANK YOU!", "СПАСИБО!");
             add ("Drag the receipt to share it. Click to close.", "Перетащите чек, чтобы поделиться. Нажмите, чтобы закрыть.");
+            add ("Click the receipt to save it as a picture. Click outside to close.", "Нажмите на чек, чтобы сохранить его картинкой. Нажмите рядом, чтобы закрыть.");
+            add ("Saved: ", "Сохранено: ");
             add ("Click to enlarge the receipt", "Нажмите, чтобы увеличить чек");
 
             // processor messages

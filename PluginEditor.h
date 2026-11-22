@@ -123,7 +123,7 @@ private:
     float level = 0.0f;
 };
 
-// The receipt printed by the RECEIPT slot after every new conversion. It can be dragged out as a picture.
+// The receipt printed by the RECEIPT slot after every new conversion. It can be saved as a picture.
 struct ReceiptData
 {
     bool valid = false;
@@ -147,7 +147,7 @@ public:
     std::function<void()> onClick;
 
     static void paintFull (juce::Graphics&, juce::Rectangle<float> area, const ReceiptData&);   // the shareable picture
-    static juce::File makePicture (const ReceiptData&);
+    static juce::File makePicture (const ReceiptData&, const juce::File& folder);
 
 private:
     ReceiptData data;
@@ -162,12 +162,12 @@ public:
     ReceiptOverlay();
     void show (const ReceiptData&);
     void paint (juce::Graphics&) override;
-    void mouseDrag (const juce::MouseEvent&) override;
     void mouseUp (const juce::MouseEvent&) override;
+    std::function<juce::File()> folder;
 private:
     juce::Rectangle<float> paperArea() const;
     ReceiptData data;
-    bool dragged = false;
+    juce::File saved;
 };
 
 // Invisible clickable area (the "ATM" sign): opens the COTERIA Telegram link

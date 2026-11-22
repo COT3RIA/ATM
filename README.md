@@ -27,7 +27,7 @@ The window is an ATM; every part of it works:
   The MIDI folder is set with "Set MIDI folder..." in the settings panel. The "ATM" sign at the top is an invisible link to the same page.
 * **Card reader**: insert the audio file here - click it or drop a file on the window. It blinks amber while converting.
 * **Receipt printer**: opens the **History** of all MIDI files the plugin has written (drag them into the DAW).
-  After every conversion of a new track the printer slot also pushes out a small paper **receipt** (track, BPM, key, notes, length). Click it to open it enlarged inside the plugin window; drag the enlarged paper out onto your desktop or into a chat to share it as a PNG, click anywhere to close. RESET removes it.
+  After every conversion of a new track the printer slot also pushes out a small paper **receipt** (track, BPM, key, notes, length). Click it to open it enlarged inside the plugin window; click the enlarged paper to save it as a PNG into the `Receipts` folder inside your MIDI folder (it is shown in the file manager), click next to it to close. The picture cannot be dragged out on purpose: DAWs such as FL Studio turn a dropped picture into a clip that is hard to remove. RESET removes it.
 * **Numeric pad**: ENTER = play / stop, CANCEL = stop, CLEAR = close the history.
 * **MIDI slot**: the finished file sticks out like a ticket - drag it into your DAW.
 * **Lower cabinet**: the Advanced Settings. Besides the slider, every value can be typed: click the number on the right, enter a value (e.g. 0.6 or 250), press Enter; values outside the range are clamped.
