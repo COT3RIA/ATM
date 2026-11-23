@@ -54,8 +54,10 @@ namespace lang
 
             // keys on the screen
             add ("OPEN", "ОТКРЫТЬ");        add ("PLAY", "ИГРАТЬ");        add ("STOP", "СТОП");
-            add ("HISTORY", "ИСТОРИЯ");     add ("SETTINGS", "НАСТРОЙКИ"); add ("LIVE", "LIVE");
+            add ("HISTORY", "ИСТОРИЯ");     add ("SETTINGS", "НАСТРОЙКИ"); add ("CLEAN", "ЧИСТО");
             add ("RESET", "СБРОС");         add ("NEXT", "ДАЛЕЕ");         add ("BACK", "НАЗАД");
+            add ("SIGN: ON", "ВЫВЕСКА: ВКЛ");  add ("SIGN: OFF", "ВЫВЕСКА: ВЫКЛ");
+            add ("The ATM sign blinks in time with the MIDI: on / off", "Вывеска «ATM» мигает в такт MIDI: вкл / выкл");
             add ("THEME", "ТЕМА");          add ("UPDATE!", "ОБНОВИТЬ!");  add ("LANG: EN", "ЯЗЫК: RU");
             add ("LANG: RU", "ЯЗЫК: RU");   add ("START: 0", "СТАРТ: 0");  add ("START: AUDIO", "СТАРТ: АУДИО");
 
@@ -66,8 +68,10 @@ namespace lang
             add ("Dark / light theme of the panels", "Тёмная / светлая тема панелей");
             add ("Show / hide the Advanced Settings", "Показать / скрыть расширенные настройки");
             add ("COTERIA on Telegram", "COTERIA в Telegram");
-            add ("Live instrument preset (guitar, piano, acoustic): fewer extra notes. Sets Note sensitivity 0.60 and Split sensitivity 0.30. For electronic music and vocals the defaults work better",
-                 "Пресет для живых инструментов (гитара, пианино, акустика): меньше лишних нот. Ставит чувствительность нот 0.60 и разделение нот 0.30. Для электронной музыки и вокала лучше настройки по умолчанию");
+            add ("Clean preset: fewer extra notes. Sets Note sensitivity 0.60 and Split sensitivity 0.30. Try it when the result has many stray notes; if notes are missing, use the defaults",
+                 "Пресет «чисто»: меньше лишних нот. Ставит чувствительность нот 0.60 и разделение нот 0.30. Пробуйте, если в результате много случайных нот; если нот не хватает, вернитесь к значениям по умолчанию");
+            add ("Tempo of the track: press to switch between as detected, x2 and half. Use it when the detected tempo is twice or half the real one",
+                 "Темп трека: переключает между найденным, x2 и половинным. Используйте, если найденный темп вдвое больше или меньше настоящего");
             add ("Next / previous page of keys", "Следующая / предыдущая страница кнопок");
             add ("Reset the settings to defaults", "Сбросить настройки по умолчанию");
             add ("MIDI position: keep the position the notes have in the audio / start the first note at 0 of the grid",

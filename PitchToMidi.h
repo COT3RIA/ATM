@@ -26,8 +26,8 @@ namespace a2m
 {
 struct Settings
 {
-    float noteSensitivity       = 0.75f;   // 0..1  higher = quieter / less certain notes are kept
-    float splitSensitivity      = 0.50f;   // 0..1  higher = notes are split (re-struck) more eagerly
+    float noteSensitivity       = 0.70f;   // 0..1  higher = quieter / less certain notes are kept
+    float splitSensitivity      = 0.40f;   // 0..1  higher = notes are split (re-struck) more eagerly
     float minNoteLengthMs       = 130.0f;  // notes shorter than this are dropped
     float minFrequencyHz        = 0.0f;    // 0 = Off
     float maxFrequencyHz        = 3000.0f;

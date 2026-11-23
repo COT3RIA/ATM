@@ -770,7 +770,7 @@ void ReceiptPaper::paint (juce::Graphics& g)
     g.setColour (juce::Colour (0xff2a2a2a));
     g.drawText (fitText (data.track, 15), juce::Rectangle<float> (paperX + 4.0f, top + 35.0f, paperW - 8.0f, 12.0f), juce::Justification::centred, false);
     dashes (49.0f);
-    line ("BPM", juce::String (juce::roundToInt (data.bpm)), 53.0f, 9.5f, true);
+    line ("BPM", data.bpm > 0.0 ? juce::String (juce::roundToInt (data.bpm)) : juce::String ("--"), 53.0f, 9.5f, true);
     line (tr ("KEY"), data.key, 65.0f, 9.5f, true);
     line (tr ("NOTES"), juce::String (data.notes), 77.0f, 9.5f, true);
     line (tr ("LENGTH"), juce::String ((int) data.seconds / 60) + ":" + juce::String ((int) data.seconds % 60).paddedLeft ('0', 2), 89.0f, 9.5f, true);
@@ -841,7 +841,7 @@ void ReceiptPaper::paintFull (juce::Graphics& g, juce::Rectangle<float> area, co
     y += 40.0f;
     row (tr ("DATE"), d.when.formatted ("%d.%m.%Y  %H:%M"), false);
     dashes();
-    row ("BPM", juce::String (juce::roundToInt (d.bpm)));
+    row ("BPM", d.bpm > 0.0 ? juce::String (juce::roundToInt (d.bpm)) : juce::String ("--"));
     row (tr ("KEY"), d.key);
     row (tr ("NOTES"), juce::String (d.notes));
     row (tr ("LENGTH"), juce::String ((int) d.seconds / 60) + ":" + juce::String ((int) d.seconds % 60).paddedLeft ('0', 2));
@@ -1139,7 +1139,7 @@ void KeyReadout::paint (juce::Graphics& g)
         const bool m = showAlt ? key.altMinor : key.minor;
         keyText = juce::String (a2m::keyName (t)) + tr (m ? " min" : " maj");
     }
-    const juce::String bpmText = key.valid ? juce::String (juce::roundToInt (bpm)) : juce::String ("--");
+    const juce::String bpmText = bpm > 0.0 ? juce::String (juce::roundToInt (bpm)) : juce::String ("--");
 
     const juce::String line = "BPM " + bpmText + "  " + juce::String::charToString ((juce::juce_wchar) 0xb7) + "  " + tr ("KEY") + " " + keyText;
     // shrink the font until the whole line fits the component (longest case: Russian "ТОН D# мин")
@@ -1394,7 +1394,7 @@ AudioToMidiEditor::AudioToMidiEditor (AudioToMidiProcessor& p)
     content.addChildComponent (receiptOverlay);
     receiptOverlay.folder = [this] { return processor.getMidiFolder().getChildFile ("Receipts"); };
     receiptPaper.onClick = [this] { if (currentReceipt.valid) receiptOverlay.show (currentReceipt); };
-    for (auto* k : { &keyOpen, &keyPlay, &keyHistory, &keySettings, &keySolo, &keyStart, &keyTheme, &keyReset, &keyTelegram, &keyNext, &keyLang })
+    for (auto* k : { &keyOpen, &keyPlay, &keyHistory, &keySettings, &keySolo, &keyStart, &keyTheme, &keyReset, &keyTelegram, &keyNext, &keyLang, &keyTempo, &keySign })
         content.addAndMakeVisible (*k);
     content.addAndMakeVisible (receipt);
     content.addAndMakeVisible (card);
@@ -1422,6 +1422,8 @@ AudioToMidiEditor::AudioToMidiEditor (AudioToMidiProcessor& p)
     keyNext.onClick = [this] { page2 = ! page2; applyKeyPage(); updateSoftLabels(); };
     keySolo.onClick = [this] { processor.toggleSoloPreset(); updateSoftLabels(); };
     keySettings.onClick = [this] { toggleSettings(); };
+    keySign.onClick = [this] { processor.setSignPulse (! processor.getSignPulse()); updateSoftLabels(); };
+    keyTempo.onClick = [this] { processor.cycleTempoMode(); updateSoftLabels(); };
     keyReset.onClick   = [this]
     {
         processor.clearAll();                    // empty the screen and the MIDI slot first ...
@@ -1504,12 +1506,14 @@ void AudioToMidiEditor::layoutContent()
     keyPlay.setBounds    (juce::Rectangle<int> (39, 26).withPosition (leftKeys[1]));     // 2
     keyHistory.setBounds (juce::Rectangle<int> (39, 26).withPosition (leftKeys[2]));     // 3
     keySettings.setBounds (juce::Rectangle<int> (39, 26).withPosition (leftKeys[3]));    // 4
+    keySign.setBounds     (juce::Rectangle<int> (39, 26).withPosition (leftKeys[4]));    // 5 (page 2)
     // right column, page 1: START, SOLO, RESET, NEXT, TELEGRAM    page 2: THEME, -, -, BACK, TELEGRAM
     keyStart.setBounds    (juce::Rectangle<int> (39, 26).withPosition (rightKeys[0]));   // 6
     keyTheme.setBounds    (juce::Rectangle<int> (39, 26).withPosition (rightKeys[0]));   // 6 (page 2)
     keyLang.setBounds     (juce::Rectangle<int> (39, 26).withPosition (rightKeys[1]));   // 7 (page 2)
     keySolo.setBounds     (juce::Rectangle<int> (39, 26).withPosition (rightKeys[1]));   // 7
     keyReset.setBounds    (juce::Rectangle<int> (39, 26).withPosition (rightKeys[2]));   // 8
+    keyTempo.setBounds    (juce::Rectangle<int> (39, 26).withPosition (rightKeys[2]));   // 8 (page 2)
     keyNext.setBounds     (juce::Rectangle<int> (39, 26).withPosition (rightKeys[3]));   // 9
     keyTelegram.setBounds (juce::Rectangle<int> (39, 26).withPosition (rightKeys[4]));   // 10
     applyKeyPage();
@@ -1561,7 +1565,9 @@ void AudioToMidiEditor::relocalise()
     keySettings.setTooltip (tr ("Show / hide the Advanced Settings"));
     keyTelegram.setTooltip (tr ("COTERIA on Telegram"));
     signLink.setTooltip (tr ("COTERIA on Telegram"));
-    keySolo.setTooltip (tr ("Live instrument preset (guitar, piano, acoustic): fewer extra notes. Sets Note sensitivity 0.60 and Split sensitivity 0.30. For electronic music and vocals the defaults work better"));
+    keySolo.setTooltip (tr ("Clean preset: fewer extra notes. Sets Note sensitivity 0.60 and Split sensitivity 0.30. Try it when the result has many stray notes; if notes are missing, use the defaults"));
+    keySign.setTooltip (tr ("The ATM sign blinks in time with the MIDI: on / off"));
+    keyTempo.setTooltip (tr ("Tempo of the track: press to switch between as detected, x2 and half. Use it when the detected tempo is twice or half the real one"));
     keyNext.setTooltip (tr ("Next / previous page of keys"));
     keyReset.setTooltip (tr ("Reset the settings to defaults"));
     keyStart.setTooltip (tr ("MIDI position: keep the position the notes have in the audio / start the first note at 0 of the grid"));
@@ -1582,6 +1588,8 @@ void AudioToMidiEditor::applyKeyPage()
     keyReset.setVisible (! page2);
     keyTheme.setVisible (page2);
     keyLang.setVisible (page2);
+    keyTempo.setVisible (page2);
+    keySign.setVisible (page2);
 }
 
 void AudioToMidiEditor::toggleSettings()
@@ -1613,6 +1621,12 @@ void AudioToMidiEditor::updateSoftLabels()
         keySettings.lit = settingsLit;
         keySettings.repaint();
     }
+    const bool pulse = processor.getSignPulse();
+    if (keySign.lit != pulse)
+    {
+        keySign.lit = pulse;
+        keySign.repaint();
+    }
     const bool solo = processor.isSoloPreset();
     if (keySolo.lit != solo)
     {
@@ -1628,9 +1642,9 @@ void AudioToMidiEditor::updateSoftLabels()
                                        : tr ("COTERIA on Telegram"));
     }
     const juce::String tg = update ? tr ("UPDATE!") : juce::String ("TELEGRAM");
-    roll.setSoftLabels ({ tr ("OPEN"), tr (processor.isPlaying() ? "STOP" : "PLAY"), tr ("HISTORY"), tr ("SETTINGS"), {} },
-                        page2 ? std::vector<juce::String> { tr ("THEME"), lang::isRu() ? juce::String::fromUTF8 ("ЯЗЫК: RU") : juce::String ("LANG: EN"), {}, tr ("BACK"), tg }
-                              : std::vector<juce::String> { tr (startZero ? "START: 0" : "START: AUDIO"), tr ("LIVE"), tr ("RESET"), tr ("NEXT"), tg });
+    roll.setSoftLabels ({ tr ("OPEN"), tr (processor.isPlaying() ? "STOP" : "PLAY"), tr ("HISTORY"), tr ("SETTINGS"), page2 ? tr (processor.getSignPulse() ? "SIGN: ON" : "SIGN: OFF") : juce::String() },
+                        page2 ? std::vector<juce::String> { tr ("THEME"), lang::isRu() ? juce::String::fromUTF8 ("ЯЗЫК: RU") : juce::String ("LANG: EN"), juce::String (processor.getTempoMode() == 1 ? "TEMPO x2" : processor.getTempoMode() == 2 ? "TEMPO /2" : "TEMPO x1"), tr ("BACK"), tg }
+                              : std::vector<juce::String> { tr (startZero ? "START: 0" : "START: AUDIO"), tr ("CLEAN"), tr ("RESET"), tr ("NEXT"), tg });
 }
 
 void AudioToMidiEditor::updateReceipt()
@@ -1676,7 +1690,7 @@ void AudioToMidiEditor::timerCallback()
 {
     updateReceipt();
     receiptPaper.tick();
-    roll.setStatus (processor.getStatusText());
+    roll.setStatus (processor.isResultStatus() ? juce::String() : processor.getStatusText());
     updateSoftLabels();
 
     panel.refresh();
@@ -1685,7 +1699,7 @@ void AudioToMidiEditor::timerCallback()
     ++tickCount;
     card.setState (processor.isBusy(), dragging, tickCount);
     roll.setBusyTick (processor.isBusy(), tickCount);
-    signGlow.setLevel (roll.getBeatLevel());
+    signGlow.setLevel (processor.getSignPulse() ? roll.getBeatLevel() : 0.0f);
     led.setState (processor.isBusy(), tickCount);
 
     const auto midi = processor.getLastMidiFile();

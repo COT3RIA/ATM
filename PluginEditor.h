@@ -387,7 +387,7 @@ private:
     void applyPanelVisibility();
     bool hasResult = false;
     NoteRoll roll;                                      // the ATM screen
-    HwButton keyOpen, keyPlay, keyHistory, keySettings, keySolo, keyStart, keyTheme, keyReset, keyTelegram, keyNext, keyLang;   // keys beside the screen (left 1-3, right 1, 4, 5)
+    HwButton keyOpen, keyPlay, keyHistory, keySettings, keySolo, keyStart, keyTheme, keyReset, keyTelegram, keyNext, keyLang, keyTempo, keySign;   // keys beside the screen (left 1-3, right 1, 4, 5)
     HwButton receipt;                                   // history
     CardReader card;
     KeypadComponent keypad;

@@ -10,9 +10,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout AudioToMidiProcessor::create
     AudioProcessorValueTreeState::ParameterLayout l;
 
     l.add (std::make_unique<AudioParameterFloat> (ParameterID { ids::noteSens, 1 }, "Note sensitivity",
-                                                  NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.75f));
+                                                  NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.70f));
     l.add (std::make_unique<AudioParameterFloat> (ParameterID { ids::splitSens, 1 }, "Split sensitivity",
-                                                  NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.50f));
+                                                  NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.40f));
     l.add (std::make_unique<AudioParameterFloat> (ParameterID { ids::minNoteMs, 1 }, "Min note length",
                                                   NormalisableRange<float> (10.0f, 1000.0f, 1.0f), 130.0f));
     l.add (std::make_unique<AudioParameterFloat> (ParameterID { ids::minFreq, 1 }, "Min frequency",
@@ -126,8 +126,8 @@ juce::String AudioToMidiProcessor::getStatusText() const
         case StatusInfo::noFile:      return lang::notes (s.count) + " - " + tr ("could not write the MIDI file, check the MIDI folder");
         case StatusInfo::done:
             return lang::notes (s.count) + "  ->  " + s.file + "  |  "
-                   + juce::String (s.bpm, 1).trimCharactersAtEnd ("0").trimCharactersAtEnd (".")
-                   + (s.hostTempo ? juce::String (" BPM") : tr (" BPM auto"))
+                   + (s.bpm > 0.0 ? juce::String (s.bpm, 1).trimCharactersAtEnd ("0").trimCharactersAtEnd (".") + " BPM"
+                                  : juce::String ("-- BPM"))
                    + (s.fromZero ? "  |  " + tr ("from 0") : juce::String());
     }
     return {};
@@ -283,6 +283,22 @@ void AudioToMidiProcessor::setDarkTheme (bool dark)
     apvts.state.setProperty ("darkTheme", dark, nullptr);
 }
 
+bool AudioToMidiProcessor::getSignPulse() const
+{
+    return (bool) apvts.state.getProperty ("signPulse", true);
+}
+
+void AudioToMidiProcessor::setSignPulse (bool on)
+{
+    apvts.state.setProperty ("signPulse", on, nullptr);
+}
+
+bool AudioToMidiProcessor::isResultStatus() const
+{
+    const juce::ScopedLock sl (infoLock);
+    return statusInfo.kind == StatusInfo::done;
+}
+
 int AudioToMidiProcessor::getEyeStyle() const
 {
     return juce::jlimit (0, 1, (int) apvts.state.getProperty ("eyeStyle", 0));
@@ -335,9 +351,20 @@ void AudioToMidiProcessor::clearAll()
     }
     totalSeconds = 0.0;
     detectedBpm = 0.0;
+    tempoMode = 0;
     tempoFromHost = false;
     busy = false;
     ++notesVersion;
+}
+
+void AudioToMidiProcessor::cycleTempoMode()
+{
+    if (detectedBpm.load() < 40.0)
+        return;
+    tempoMode = (tempoMode.load() + 1) % 3;
+    ++notesVersion;                                 // refresh the readout
+    if (hasAudio() && ! busy.load())
+        requestReconvert();                         // without a DAW tempo the file is written in the track tempo
 }
 
 void AudioToMidiProcessor::requestReconvert()
@@ -455,6 +482,7 @@ void AudioToMidiProcessor::runConversion (juce::File file, bool decode, int gen)
 
         spec = analysed;
         detectedBpm = a2m::estimateBpm (*analysed);
+        tempoMode = 0;
         totalSeconds = seconds;
         const juce::ScopedLock sl (dataLock);
         spectrogram = spec;
@@ -520,8 +548,8 @@ void AudioToMidiProcessor::runConversion (juce::File file, bool decode, int gen)
         {
             si.kind = StatusInfo::done;
             si.file = midiFile.getFileName();
-            si.bpm = midiBpm.load();
-            si.hostTempo = tempoFromHost.load();
+            si.bpm = getTrackBpm();
+            si.hostTempo = true;
             si.fromZero = startAtZero;
         }
         setStatus (si);
@@ -544,7 +572,7 @@ juce::File AudioToMidiProcessor::writeMidi (const std::vector<a2m::Note>& n, con
     // The file is written in the tempo of the DAW project, so that the notes line up with the audio in time:
     // most DAWs place a MIDI file by its beats and ignore the tempo stored in the file.
     // Without a host tempo (standalone, or the host does not tell) the tempo detected in the audio is used.
-    const double hb = hostBpm.load(), db = detectedBpm.load();
+    const double hb = hostBpm.load(), db = getTrackBpm();
     const bool fromHost = hb >= 20.0 && hb <= 400.0;
     const double bpm = fromHost ? hb : (db >= 40.0 && db <= 240.0 ? db : 120.0);
     tempoFromHost = fromHost;

@@ -84,8 +84,18 @@ public:
     int getNotesVersion() const { return notesVersion.load(); }
     a2m::KeyResult getKeyInfo() const        { const juce::ScopedLock sl (infoLock); return keyInfo; }
     double getMidiBpm() const noexcept       { return midiBpm.load(); }
-    // Tempo of the audio itself (what the track really runs at); falls back to the MIDI tempo when it cannot be found
-    double getTrackBpm() const noexcept      { const double d = detectedBpm.load(); return (d >= 40.0 && d <= 240.0) ? d : midiBpm.load(); }
+    // Tempo of the audio itself (what the track really runs at); 0 when it cannot be found (never the DAW project tempo)
+    double getTrackBpm() const noexcept
+    {
+        const double d = detectedBpm.load();
+        if (! (d >= 40.0 && d <= 240.0))
+            return 0.0;
+        const int m = tempoMode.load();
+        const double t = m == 1 ? d * 2.0 : (m == 2 ? d * 0.5 : d);        // x2 / half-tempo correction chosen by the user
+        return (t >= 40.0 && t <= 240.0) ? t : d;
+    }
+    int  getTempoMode() const noexcept       { return tempoMode.load(); }     // 0 = as detected, 1 = x2, 2 = /2
+    void cycleTempoMode();
     double getTotalSeconds() const { return totalSeconds.load(); }
     double getPlayPositionSeconds() const { return playPosUi.load(); }
 
@@ -109,6 +119,9 @@ public:
     bool isUpdateAvailable() const noexcept     { return updateAvailable.load(); }
     juce::String getLatestVersion() const;
     void setDarkTheme (bool dark);
+    bool getSignPulse() const;                      // the "ATM" sign blinks in time with the MIDI
+    void setSignPulse (bool on);
+    bool isResultStatus() const;                    // the status is the "N notes -> file" summary (not shown on the screen)
     int  getEyeStyle() const;                       // 0 = red orbs, 1 = follows the theme
     void setEyeStyle (int style);
     juce::Point<int> getEditorSize() const;         // {0,0} = not stored yet
@@ -151,6 +164,7 @@ private:
     std::atomic<double> hostBpm { 0.0 };        // tempo of the DAW project (0 = unknown), set in processBlock
     std::atomic<double> detectedBpm { 0.0 };    // tempo found in the audio (0 = unknown), used when the DAW gives none
     std::atomic<bool>   tempoFromHost { false };
+    std::atomic<int>    tempoMode { 0 };
     std::atomic<double> midiBpm { 120.0 };                     // tempo the current .mid was written with
 
     // preview playback (audio thread)
@@ -167,7 +181,7 @@ private:
 
     std::atomic<bool> updateAvailable { false };
     juce::String latestVersion;
-    float soloPrevNote = 0.75f, soloPrevSplit = 0.50f;
+    float soloPrevNote = 0.70f, soloPrevSplit = 0.40f;
     juce::ThreadPool netPool { 1 };
 
     juce::ThreadPool pool { 1 };   // must stay the last member
