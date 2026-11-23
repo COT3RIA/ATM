@@ -227,10 +227,11 @@ void NoteRoll::refresh()
     total = processor.getTotalSeconds();
 
     {
-        const float want = notes.empty() ? 0.0f : 1.0f;
+        const float want = (! notes.empty() || (hover && ! processor.isBusy())) ? 1.0f : 0.0f;
         if (labelAlpha != want)
         {
-            labelAlpha += juce::jlimit (-0.12f, 0.045f, want - labelAlpha);     // slow fade in (~0.7 s), quicker fade out
+            // after a conversion the labels fade in slowly (~0.7 s); on hover they come up faster, and they leave quickly
+            labelAlpha += juce::jlimit (-0.12f, notes.empty() ? 0.10f : 0.045f, want - labelAlpha);
             if (std::abs (labelAlpha - want) < 0.01f)
                 labelAlpha = want;
             repaint();
@@ -367,6 +368,9 @@ void NoteRoll::paint (juce::Graphics& g)
     if (notes.empty() && ! processor.isBusy())
     {
         // "drop audio here": a tray with an arrow
+        const float dropA = 1.0f - labelAlpha;          // the hint fades out while the key labels show
+        if (dropA > 0.005f)
+        {
         const float cx = bounds.getCentreX(), cy = bounds.getCentreY() - 22.0f;
         juce::Path arrow;
         arrow.startNewSubPath (cx, cy - 34.0f);
@@ -378,15 +382,16 @@ void NoteRoll::paint (juce::Graphics& g)
         arrow.lineTo (cx - 30.0f, cy + 30.0f);
         arrow.lineTo (cx + 30.0f, cy + 30.0f);
         arrow.lineTo (cx + 30.0f, cy + 12.0f);
-        g.setColour (ink.withAlpha (0.92f));
+        g.setColour (ink.withAlpha (0.92f * dropA));
         g.strokePath (arrow, juce::PathStrokeType (5.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
-        g.setColour (ink);
+        g.setColour (ink.withAlpha (dropA));
         g.setFont (juce::Font (juce::FontOptions (26.0f, juce::Font::bold)));
         g.drawText (tr ("Drop audio here"), getLocalBounds().withTrimmedTop (getHeight() - 80).withHeight (34), juce::Justification::centred);
-        g.setColour (ink.withAlpha (0.85f));
+        g.setColour (ink.withAlpha (0.85f * dropA));
         g.setFont (juce::Font (juce::FontOptions (19.0f)));
         g.drawText ("MP3 / WAV / FLAC", getLocalBounds().withTrimmedTop (getHeight() - 46).withHeight (26), juce::Justification::centred);
+        }
     }
 
     if (busyNow)
@@ -1699,6 +1704,12 @@ void AudioToMidiEditor::timerCallback()
     ++tickCount;
     card.setState (processor.isBusy(), dragging, tickCount);
     roll.setBusyTick (processor.isBusy(), tickCount);
+    {
+        bool hover = roll.isMouseOver (true);
+        for (auto* k : { &keyOpen, &keyPlay, &keyHistory, &keySettings, &keySolo, &keyStart, &keyTheme, &keyReset, &keyTelegram, &keyNext, &keyLang, &keyTempo, &keySign })
+            hover = hover || (k->isVisible() && k->isMouseOver (true));
+        roll.setHover (hover);
+    }
     signGlow.setLevel (processor.getSignPulse() ? roll.getBeatLevel() : 0.0f);
     led.setState (processor.isBusy(), tickCount);
 

@@ -78,10 +78,13 @@ public:
         }
     }
 
+    void setHover (bool h) { hover = h; }           // the mouse is over the screen or one of its keys: show the key labels
+
     std::function<void()> onEmptyClick;
 
 private:
     AudioToMidiProcessor& processor;
+    bool hover = false;
     std::vector<a2m::Note> notes;
     int version = -1;
     double total = 0.0, playPos = -1.0;
