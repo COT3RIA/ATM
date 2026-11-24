@@ -486,30 +486,58 @@ void HwButton::paintButton (juce::Graphics& g, bool highlighted, bool down)
 // Card reader
 void CardReader::setState (bool isBusy, bool isDrag, int tick)
 {
-    const bool b = (tick / 8) % 2 == 0;
-    if (isBusy != busy || isDrag != drag || (isBusy && b != blink))
+    if (isBusy != busy || isDrag != drag || isBusy)          // while busy the scan animation repaints on every tick
     {
         busy = isBusy;
         drag = isDrag;
-        blink = b;
+        phase = (float) tick / 30.0f;
         repaint();
     }
 }
 
 void CardReader::paintButton (juce::Graphics& g, bool highlighted, bool)
 {
-    // positions of the three green lights of the picture, relative to this component (it starts at 615, 646)
-    const juce::Rectangle<float> lights[] = { { 34.0f, 44.0f, 98.0f, 9.0f }, { 64.0f, 72.0f, 42.0f, 10.0f }, { 66.0f, 122.0f, 40.0f, 10.0f } };
-
+    // The three green lights of the picture, relative to this component (it starts at 615, 646).
+    // While converting we do not repaint them in another colour (that muddied the green); we only add light on top of them:
+    // a bright spot runs along the top strip and a scan line sweeps the slot, like a card being read.
     if (busy)
     {
-        const auto amber = blink ? juce::Colour (0xffffb43a) : juce::Colour (0xff8a5a10);
-        for (auto l : lights)
+        const juce::Colour mint (0xffdcffe6), green (0xff35ff6b);
+        auto tri = [] (float x) { x -= std::floor (x); return x < 0.5f ? x * 2.0f : 2.0f - x * 2.0f; };   // 0..1..0
+
+        // top strip: a soft highlight travelling back and forth
         {
-            g.setColour (amber.withAlpha (0.35f));
-            g.fillRoundedRectangle (l.expanded (4.0f), 6.0f);
-            g.setColour (amber.withAlpha (0.92f));
-            g.fillRoundedRectangle (l, 4.0f);
+            const juce::Rectangle<float> strip (33.0f, 44.0f, 99.0f, 10.0f);
+            const float cx = strip.getX() + strip.getWidth() * tri (phase / 1.6f);
+            g.saveState();
+            g.reduceClipRegion (strip.toNearestInt());
+            juce::ColourGradient grad (mint.withAlpha (0.0f), cx - 9.0f, 0.0f, mint.withAlpha (0.0f), cx + 9.0f, 0.0f, false);
+            grad.addColour (0.5, mint.withAlpha (0.95f));
+            g.setGradientFill (grad);
+            g.fillRoundedRectangle (strip, 4.0f);
+            g.restoreState();
+        }
+
+        // the two lights of the slot take turns to brighten
+        const float p = 0.5f + 0.5f * std::sin (phase * juce::MathConstants<float>::twoPi / 1.1f);
+        g.setColour (mint.withAlpha (0.55f * p));
+        g.fillRoundedRectangle (juce::Rectangle<float> (65.0f, 73.0f, 42.0f, 7.0f), 3.0f);
+        g.setColour (mint.withAlpha (0.55f * (1.0f - p)));
+        g.fillRoundedRectangle (juce::Rectangle<float> (66.0f, 125.0f, 40.0f, 6.0f), 3.0f);
+
+        // scan line inside the slot
+        {
+            const juce::Rectangle<float> slot (62.0f, 84.0f, 46.0f, 38.0f);
+            const float y = slot.getY() + slot.getHeight() * tri (phase / 1.2f);
+            g.saveState();
+            g.reduceClipRegion (slot.toNearestInt());
+            juce::ColourGradient glow (green.withAlpha (0.0f), 0.0f, y - 4.0f, green.withAlpha (0.0f), 0.0f, y + 4.0f, false);
+            glow.addColour (0.5, green.withAlpha (0.45f));
+            g.setGradientFill (glow);
+            g.fillRect (slot.getX(), y - 4.0f, slot.getWidth(), 8.0f);
+            g.setColour (mint.withAlpha (0.95f));
+            g.fillRoundedRectangle (slot.getX() + 1.0f, y - 0.6f, slot.getWidth() - 2.0f, 1.2f, 0.6f);
+            g.restoreState();
         }
     }
 
