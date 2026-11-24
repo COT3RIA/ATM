@@ -213,7 +213,8 @@ public:
     void setState (bool isBusy, bool isDrag, int tick);
 
 private:
-    bool busy = false, drag = false, blink = false;
+    bool busy = false, drag = false;
+    float phase = 0.0f;                              // seconds, drives the scan animation
 };
 
 // The numeric pad: ENTER = play / stop, CANCEL = stop, CLEAR = close the history
