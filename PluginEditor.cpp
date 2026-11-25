@@ -1453,7 +1453,7 @@ AudioToMidiEditor::AudioToMidiEditor (AudioToMidiProcessor& p)
     keyTelegram.onClick = [] { juce::URL ("https://t.me/addlist/K6LKlIp6UWI4Y2Uy").launchInDefaultBrowser(); };
     signLink.onClick    = [] { juce::URL ("https://t.me/addlist/K6LKlIp6UWI4Y2Uy").launchInDefaultBrowser(); };
     keyNext.onClick = [this] { page2 = ! page2; applyKeyPage(); updateSoftLabels(); };
-    keySolo.onClick = [this] { processor.toggleSoloPreset(); updateSoftLabels(); };
+    keySolo.onClick = [this] { processor.cycleMode(); updateSoftLabels(); };
     keySettings.onClick = [this] { toggleSettings(); };
     keySign.onClick = [this] { processor.setSignPulse (! processor.getSignPulse()); updateSoftLabels(); };
     keyTempo.onClick = [this] { processor.cycleTempoMode(); updateSoftLabels(); };
@@ -1598,7 +1598,7 @@ void AudioToMidiEditor::relocalise()
     keySettings.setTooltip (tr ("Show / hide the Advanced Settings"));
     keyTelegram.setTooltip (tr ("COTERIA on Telegram"));
     signLink.setTooltip (tr ("COTERIA on Telegram"));
-    keySolo.setTooltip (tr ("Clean preset: fewer extra notes. Sets Note sensitivity 0.60 and Split sensitivity 0.30. Try it when the result has many stray notes; if notes are missing, use the defaults"));
+    keySolo.setTooltip (tr ("Note mode: Normal (default), Clean (fewer extra notes: vocals with a beat, stray notes) or More (more notes: live instruments, band recordings, clean synths). It only sets Note and Split sensitivity"));
     keySign.setTooltip (tr ("The ATM sign blinks in time with the MIDI: on / off"));
     keyTempo.setTooltip (tr ("Tempo of the track: press to switch between as detected, x2 and half. Use it when the detected tempo is twice or half the real one"));
     keyNext.setTooltip (tr ("Next / previous page of keys"));
@@ -1640,6 +1640,17 @@ void AudioToMidiEditor::toggleSettings()
     updateSoftLabels();
 }
 
+static juce::String modeLabelFor (int mode)
+{
+    switch (mode)
+    {
+        case AudioToMidiProcessor::modeClean:  return tr ("MODE: CLEAN");
+        case AudioToMidiProcessor::modeMore:   return tr ("MODE: MORE");
+        case AudioToMidiProcessor::modeCustom: return tr ("MODE: CUSTOM");
+        default:                               return tr ("MODE: NORMAL");
+    }
+}
+
 void AudioToMidiEditor::updateSoftLabels()
 {
     const bool startZero = processor.apvts.getRawParameterValue (ids::startZero)->load() > 0.5f;
@@ -1660,7 +1671,13 @@ void AudioToMidiEditor::updateSoftLabels()
         keySign.lit = pulse;
         keySign.repaint();
     }
-    const bool solo = processor.isSoloPreset();
+    const int modeNow = processor.getMode();
+    if (modeNow != lastMode)
+    {
+        lastMode = modeNow;
+        updateSoftLabels();                         // the sliders may also be moved by hand
+    }
+    const bool solo = modeNow != AudioToMidiProcessor::modeNormal;
     if (keySolo.lit != solo)
     {
         keySolo.lit = solo;

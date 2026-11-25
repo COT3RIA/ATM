@@ -108,10 +108,14 @@ public:
 
     // update notice: once per session the plugin reads a tiny version file (see ATM_UPDATE_URL in CMakeLists.txt);
     // nothing is downloaded or installed, the user is only told that a newer version exists
-    // "Solo instrument" preset (single guitar / piano and the like): Note sensitivity 0.60, Split sensitivity 0.30.
-    // It is "on" whenever the two sliders sit on exactly these values; switching it off restores the previous ones.
-    bool isSoloPreset() const;
-    void toggleSoloPreset();
+    // Note modes (one key cycles them): they only set Note / Split sensitivity.
+    //   NORMAL 0.70 / 0.40 - the default, best on average
+    //   CLEAN  0.60 / 0.30 - fewer extra notes: vocals with a beat, electronic music with stray notes
+    //   MORE   0.75 / 0.50 - more notes: live instruments, band recordings, clean synths
+    // The mode is read from the two sliders (CUSTOM when they sit on none of the presets); no extra state is stored.
+    enum Mode { modeNormal = 0, modeClean, modeMore, modeCustom };
+    int  getMode() const;
+    void cycleMode();
 
     bool getCheckUpdates() const;
     void setCheckUpdates (bool);
@@ -181,7 +185,6 @@ private:
 
     std::atomic<bool> updateAvailable { false };
     juce::String latestVersion;
-    float soloPrevNote = 0.70f, soloPrevSplit = 0.40f;
     juce::ThreadPool netPool { 1 };
 
     juce::ThreadPool pool { 1 };   // must stay the last member

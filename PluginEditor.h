@@ -372,6 +372,7 @@ private:
     bool settingsOn = true;                             // the Advanced Settings window is shown
     void setHighlight (bool on);
     void updateSoftLabels();
+    int lastMode = -1;
 
     AudioToMidiProcessor& processor;
     GreenLookAndFeel laf;

@@ -21,8 +21,7 @@ The window is an ATM (silver machine with the COTERIA graffiti panel, `assets/at
   with the music while it plays.
 * **Keys beside the screen** (labels are shown on the screen). Left, top to bottom: OPEN, PLAY/STOP, HISTORY,
   SETTINGS (show / hide the Advanced Settings), (free). Right column, page 1: START ("AUDIO" keeps the notes where they
-  are in the audio, "0" moves the first note to the start of the grid), CLEAN (preset with fewer extra notes: Note
-  sensitivity 0.60, Split sensitivity 0.30; press again to go back; on the test tracks it helps most mixes, EDM and vocals; if notes are missing use the defaults), RESET (empties the screen and the MIDI slot and returns the settings to defaults), NEXT, TELEGRAM (opens
+  are in the audio, "0" moves the first note to the start of the grid), MODE (note mode: NORMAL 0.70/0.40 is the default; CLEAN 0.60/0.30 gives fewer extra notes, good for vocals with a beat; MORE 0.75/0.50 gives more notes, good for live instruments and band recordings; the key cycles them and only sets Note / Split sensitivity), RESET (empties the screen and the MIDI slot and returns the settings to defaults), NEXT, TELEGRAM (opens
   the COTERIA channels). Page 2 (after NEXT): THEME (dark / light panels), left column key 5: SIGN (the "ATM" sign blinks in time with the MIDI: on / off), LANG (English / Russian interface), TEMPO (as detected / x2 / half: for tracks whose detected tempo is twice or half the real one), BACK, TELEGRAM.
   The MIDI folder is set with "Set MIDI folder..." in the settings panel. The "ATM" sign at the top is an invisible link to the same page.
 * **Card reader**: insert the audio file here - click it or drop a file on the window. It blinks amber while converting.

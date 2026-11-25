@@ -147,26 +147,26 @@ static void setParamValue (juce::AudioProcessorValueTreeState& apvts, const char
         p->setValueNotifyingHost (p->convertTo0to1 (v));
 }
 
-bool AudioToMidiProcessor::isSoloPreset() const
+int AudioToMidiProcessor::getMode() const
 {
-    return std::abs (apvts.getRawParameterValue (ids::noteSens)->load() - 0.60f) < 0.005f
-        && std::abs (apvts.getRawParameterValue (ids::splitSens)->load() - 0.30f) < 0.005f;
+    const float n = apvts.getRawParameterValue (ids::noteSens)->load();
+    const float s = apvts.getRawParameterValue (ids::splitSens)->load();
+    auto is = [&] (float a, float b) { return std::abs (n - a) < 0.005f && std::abs (s - b) < 0.005f; };
+    if (is (0.70f, 0.40f)) return modeNormal;
+    if (is (0.60f, 0.30f)) return modeClean;
+    if (is (0.75f, 0.50f)) return modeMore;
+    return modeCustom;
 }
 
-void AudioToMidiProcessor::toggleSoloPreset()
+void AudioToMidiProcessor::cycleMode()
 {
-    if (isSoloPreset())
-    {
-        setParamValue (apvts, ids::noteSens, soloPrevNote);
-        setParamValue (apvts, ids::splitSens, soloPrevSplit);
-    }
-    else
-    {
-        soloPrevNote  = apvts.getRawParameterValue (ids::noteSens)->load();
-        soloPrevSplit = apvts.getRawParameterValue (ids::splitSens)->load();
-        setParamValue (apvts, ids::noteSens, 0.60f);
-        setParamValue (apvts, ids::splitSens, 0.30f);
-    }
+    // NORMAL -> CLEAN -> MORE -> NORMAL; from custom values it goes back to NORMAL
+    static const float note[]  = { 0.70f, 0.60f, 0.75f };
+    static const float split[] = { 0.40f, 0.30f, 0.50f };
+    const int m = getMode();
+    const int next = m == modeCustom ? (int) modeNormal : (m + 1) % 3;
+    setParamValue (apvts, ids::noteSens, note[next]);
+    setParamValue (apvts, ids::splitSens, split[next]);
 }
 
 //==============================================================================
