@@ -113,7 +113,7 @@ public:
     //   CLEAN  0.60 / 0.30 - fewer extra notes: vocals with a beat, electronic music with stray notes
     //   MORE   0.75 / 0.50 - more notes: live instruments, band recordings, clean synths
     // The mode is read from the two sliders (CUSTOM when they sit on none of the presets); no extra state is stored.
-    enum Mode { modeNormal = 0, modeClean, modeMore, modeCustom };
+    enum Mode { modeNormal = 0, modeClean, modeMore, modeStrings, modeCustom };
     int  getMode() const;
     void cycleMode();
 

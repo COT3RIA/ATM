@@ -42,9 +42,13 @@ Name: "standalone"; Description: "ATM standalone application"; Types: full custo
 [Files]
 Source: "{#VstDir}\ATM.vst3\*"; DestDir: "{commonpf64}\Common Files\VST3\ATM.vst3"; Components: vst3; Flags: recursesubdirs createallsubdirs ignoreversion
 Source: "{#StandaloneDir}\ATM.exe"; DestDir: "{app}"; Components: standalone; Flags: ignoreversion
+Source: "docs\ATM_Guide_RU.pdf"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "docs\ATM_Guide_EN.pdf"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 
 [Icons]
 Name: "{group}\ATM"; Filename: "{app}\ATM.exe"; Components: standalone
+Name: "{group}\ATM User Guide (RU)"; Filename: "{app}\ATM_Guide_RU.pdf"; Check: FileExists(ExpandConstant('{app}\ATM_Guide_RU.pdf'))
+Name: "{group}\ATM User Guide (EN)"; Filename: "{app}\ATM_Guide_EN.pdf"; Check: FileExists(ExpandConstant('{app}\ATM_Guide_EN.pdf'))
 Name: "{group}\Uninstall ATM"; Filename: "{uninstallexe}"
 
 [InstallDelete]

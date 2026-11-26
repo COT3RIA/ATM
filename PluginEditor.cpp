@@ -1598,7 +1598,7 @@ void AudioToMidiEditor::relocalise()
     keySettings.setTooltip (tr ("Show / hide the Advanced Settings"));
     keyTelegram.setTooltip (tr ("COTERIA on Telegram"));
     signLink.setTooltip (tr ("COTERIA on Telegram"));
-    keySolo.setTooltip (tr ("Note mode: Normal (default), Clean (fewer extra notes: vocals with a beat, stray notes) or More (more notes: live instruments, band recordings, clean synths). It only sets Note and Split sensitivity"));
+    keySolo.setTooltip (tr ("Note mode: Normal (default), Clean (fewer extra notes: vocals with a beat, stray notes), More (more notes: live instruments, band recordings, clean synths) or Strings (fewest extra notes: violin, orchestra, heavy distorted guitars). It only sets Note and Split sensitivity"));
     keySign.setTooltip (tr ("The ATM sign blinks in time with the MIDI: on / off"));
     keyTempo.setTooltip (tr ("Tempo of the track: press to switch between as detected, x2 and half. Use it when the detected tempo is twice or half the real one"));
     keyNext.setTooltip (tr ("Next / previous page of keys"));
@@ -1646,6 +1646,7 @@ static juce::String modeLabelFor (int mode)
     {
         case AudioToMidiProcessor::modeClean:  return tr ("MODE: CLEAN");
         case AudioToMidiProcessor::modeMore:   return tr ("MODE: MORE");
+        case AudioToMidiProcessor::modeStrings:return tr ("MODE: STRINGS");
         case AudioToMidiProcessor::modeCustom: return tr ("MODE: CUSTOM");
         default:                               return tr ("MODE: NORMAL");
     }
@@ -1694,7 +1695,7 @@ void AudioToMidiEditor::updateSoftLabels()
     const juce::String tg = update ? tr ("UPDATE!") : juce::String ("TELEGRAM");
     roll.setSoftLabels ({ tr ("OPEN"), tr (processor.isPlaying() ? "STOP" : "PLAY"), tr ("HISTORY"), tr ("SETTINGS"), page2 ? tr (processor.getSignPulse() ? "SIGN: ON" : "SIGN: OFF") : juce::String() },
                         page2 ? std::vector<juce::String> { tr ("THEME"), lang::isRu() ? juce::String::fromUTF8 ("ЯЗЫК: RU") : juce::String ("LANG: EN"), juce::String (processor.getTempoMode() == 1 ? "TEMPO x2" : processor.getTempoMode() == 2 ? "TEMPO /2" : "TEMPO x1"), tr ("BACK"), tg }
-                              : std::vector<juce::String> { tr (startZero ? "START: 0" : "START: AUDIO"), tr ("CLEAN"), tr ("RESET"), tr ("NEXT"), tg });
+                              : std::vector<juce::String> { tr (startZero ? "START: 0" : "START: AUDIO"), modeLabelFor (modeNow), tr ("RESET"), tr ("NEXT"), tg });
 }
 
 void AudioToMidiEditor::updateReceipt()

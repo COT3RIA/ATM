@@ -55,7 +55,7 @@ namespace lang
             // keys on the screen
             add ("OPEN", "ОТКРЫТЬ");        add ("PLAY", "ИГРАТЬ");        add ("STOP", "СТОП");
             add ("HISTORY", "ИСТОРИЯ");     add ("SETTINGS", "НАСТРОЙКИ"); add ("MODE: NORMAL", "РЕЖИМ: НОРМА"); add ("MODE: CLEAN", "РЕЖИМ: ЧИСТО");
-            add ("MODE: MORE", "РЕЖИМ: МНОГО"); add ("MODE: CUSTOM", "РЕЖИМ: СВОЙ");
+            add ("MODE: MORE", "РЕЖИМ: МНОГО"); add ("MODE: CUSTOM", "РЕЖИМ: СВОЙ"); add ("MODE: STRINGS", "РЕЖИМ: СТРУНЫ");
             add ("RESET", "СБРОС");         add ("NEXT", "ДАЛЕЕ");         add ("BACK", "НАЗАД");
             add ("SIGN: ON", "ВЫВЕСКА: ВКЛ");  add ("SIGN: OFF", "ВЫВЕСКА: ВЫКЛ");
             add ("The ATM sign blinks in time with the MIDI: on / off", "Вывеска «ATM» мигает в такт MIDI: вкл / выкл");
@@ -69,8 +69,8 @@ namespace lang
             add ("Dark / light theme of the panels", "Тёмная / светлая тема панелей");
             add ("Show / hide the Advanced Settings", "Показать / скрыть расширенные настройки");
             add ("COTERIA on Telegram", "COTERIA в Telegram");
-            add ("Note mode: Normal (default), Clean (fewer extra notes: vocals with a beat, stray notes) or More (more notes: live instruments, band recordings, clean synths). It only sets Note and Split sensitivity",
-                 "Режим нот: Норма (по умолчанию), Чисто (меньше лишних нот: вокал с битом, случайные ноты) или Много (больше нот: живые инструменты, групповые записи, чистые синтезаторы). Меняет только чувствительность нот и разделения");
+            add ("Note mode: Normal (default), Clean (fewer extra notes: vocals with a beat, stray notes), More (more notes: live instruments, band recordings, clean synths) or Strings (fewest extra notes: violin, orchestra, heavy distorted guitars). It only sets Note and Split sensitivity",
+                 "Режим нот: Норма (по умолчанию), Чисто (меньше лишних нот: вокал с битом, случайные ноты) Много (больше нот: живые инструменты, групповые записи, чистые синтезаторы) или Струны (минимум лишних нот: скрипка, оркестр, тяжёлые гитары). Меняет только чувствительность нот и разделения");
             add ("Tempo of the track: press to switch between as detected, x2 and half. Use it when the detected tempo is twice or half the real one",
                  "Темп трека: переключает между найденным, x2 и половинным. Используйте, если найденный темп вдвое больше или меньше настоящего");
             add ("Next / previous page of keys", "Следующая / предыдущая страница кнопок");
