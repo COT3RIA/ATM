@@ -1641,11 +1641,11 @@ void AudioToMidiEditor::layoutContent()
     keyHistory.setBounds (juce::Rectangle<int> (39, 26).withPosition (leftKeys[2]));     // 3
     keySettings.setBounds (juce::Rectangle<int> (39, 26).withPosition (leftKeys[3]));    // 4
     keySign.setBounds     (juce::Rectangle<int> (39, 26).withPosition (leftKeys[4]));    // 5 (page 2)
-    // right column, page 1: START, SOLO, RESET, NEXT, TELEGRAM    page 2: THEME, -, -, BACK, TELEGRAM
-    keyStart.setBounds    (juce::Rectangle<int> (39, 26).withPosition (rightKeys[0]));   // 6
+    // right column, page 1: MODE, START, RESET, NEXT, TELEGRAM    page 2: THEME, -, -, BACK, TELEGRAM
+    keyStart.setBounds    (juce::Rectangle<int> (39, 26).withPosition (rightKeys[1]));   // 7
     keyTheme.setBounds    (juce::Rectangle<int> (39, 26).withPosition (rightKeys[0]));   // 6 (page 2)
     keyLang.setBounds     (juce::Rectangle<int> (39, 26).withPosition (rightKeys[1]));   // 7 (page 2)
-    keySolo.setBounds     (juce::Rectangle<int> (39, 26).withPosition (rightKeys[1]));   // 7
+    keySolo.setBounds     (juce::Rectangle<int> (39, 26).withPosition (rightKeys[0]));   // 6
     keyReset.setBounds    (juce::Rectangle<int> (39, 26).withPosition (rightKeys[2]));   // 8
     keyTempo.setBounds    (juce::Rectangle<int> (39, 26).withPosition (rightKeys[2]));   // 8 (page 2)
     keyNext.setBounds     (juce::Rectangle<int> (39, 26).withPosition (rightKeys[3]));   // 9
@@ -1796,7 +1796,7 @@ void AudioToMidiEditor::updateSoftLabels()
     const juce::String tg = update ? tr ("UPDATE!") : juce::String ("TELEGRAM");
     roll.setSoftLabels ({ tr ("OPEN"), tr (processor.isPlaying() ? "STOP" : "PLAY"), tr ("HISTORY"), tr ("SETTINGS"), page2 ? tr (processor.getSignPulse() ? "SIGN: ON" : "SIGN: OFF") : juce::String() },
                         page2 ? std::vector<juce::String> { tr ("THEME"), lang::isRu() ? juce::String::fromUTF8 ("ЯЗЫК: RU") : juce::String ("LANG: EN"), juce::String (processor.getTempoMode() == 1 ? "TEMPO x2" : processor.getTempoMode() == 2 ? "TEMPO /2" : "TEMPO x1"), tr ("BACK"), tg }
-                              : std::vector<juce::String> { tr (startZero ? "START: 0" : "START: AUDIO"), modeLabelFor (modeNow), tr ("RESET"), tr ("NEXT"), tg });
+                              : std::vector<juce::String> { modeLabelFor (modeNow), tr (startZero ? "START: 0" : "START: AUDIO"), tr ("RESET"), tr ("NEXT"), tg });
 }
 
 void AudioToMidiEditor::updateReceipt()
