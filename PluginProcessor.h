@@ -89,6 +89,9 @@ public:
     // Tempo of the audio itself (what the track really runs at); 0 when it cannot be found (never the DAW project tempo)
     double getTrackBpm() const noexcept
     {
+        const double man = manualBpm.load();
+        if (man >= 30.0 && man <= 300.0)
+            return man;                                              // typed in by the user
         const double d = detectedBpm.load();
         if (! (d >= 40.0 && d <= 240.0))
             return 0.0;
@@ -98,6 +101,8 @@ public:
     }
     int  getTempoMode() const noexcept       { return tempoMode.load(); }     // 0 = as detected, 1 = x2, 2 = /2
     void cycleTempoMode();
+    void setManualBpm (double bpm);                  // 0 = back to the detected tempo
+    double getManualBpm() const noexcept     { return manualBpm.load(); }
     double getTotalSeconds() const { return totalSeconds.load(); }
     double getPlayPositionSeconds() const { return playPosUi.load(); }
 
@@ -171,6 +176,7 @@ private:
     std::atomic<double> detectedBpm { 0.0 };    // tempo found in the audio (0 = unknown), used when the DAW gives none
     std::atomic<bool>   tempoFromHost { false };
     std::atomic<int>    tempoMode { 0 };
+    std::atomic<double> manualBpm { 0.0 };      // tempo typed in by the user (0 = not set)
     std::atomic<double> midiBpm { 120.0 };                     // tempo the current .mid was written with
 
     // preview playback (audio thread)

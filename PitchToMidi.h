@@ -55,6 +55,7 @@ struct Spectrogram
     std::vector<float> note;       // numFrames * numPitches, note (frame) activation 0..1
     std::vector<float> onset;      // numFrames * numPitches, note onset probability 0..1
     std::vector<double> frameTime; // time in seconds of every frame (numFrames + 1 entries)
+    std::vector<float>  beatEnv;   // onset strength of the audio itself (drums, attacks), 22050/256 frames per second
 };
 
 namespace detail
@@ -137,6 +138,80 @@ inline std::vector<float> resampleTo22050 (const std::vector<float>& in, double 
 
 //==============================================================================
 // Stage 1: network inference over the whole file
+// Onset strength of the audio itself: log-compressed band energies (48 bands, 50 Hz..10 kHz), half-wave rectified
+// difference, local level removed. Used only for the tempo: it hears drums and attacks the note model does not.
+inline std::vector<float> computeBeatEnvelope (const std::vector<float>& x)
+{
+    constexpr int N = 1024, H = 256, NB = 48, HALF = N / 2 + 1;
+    const long frames = (long) x.size() >= N ? ((long) x.size() - N) / H + 1 : 0;
+    if (frames < 8)
+        return {};
+
+    std::vector<double> win ((size_t) N), cosT ((size_t) N / 2), sinT ((size_t) N / 2);
+    double wsum = 0.0;
+    for (int i = 0; i < N; ++i) { win[(size_t) i] = 0.5 - 0.5 * std::cos (2.0 * detail::kPi * i / N); wsum += win[(size_t) i]; }
+    for (int i = 0; i < N / 2; ++i) { cosT[(size_t) i] = std::cos (2.0 * detail::kPi * i / N); sinT[(size_t) i] = -std::sin (2.0 * detail::kPi * i / N); }
+
+    int lo[NB + 1];
+    for (int b = 0; b <= NB; ++b)
+    {
+        const double fe = 50.0 * std::pow (10000.0 / 50.0, (double) b / NB);
+        lo[b] = (int) std::ceil (fe / ((double) detail::kSampleRate / N) - 1e-9);
+    }
+
+    std::vector<double> re ((size_t) N), im ((size_t) N), prev ((size_t) NB, 0.0), cur ((size_t) NB);
+    std::vector<float> env ((size_t) frames, 0.0f);
+    for (long f = 0; f < frames; ++f)
+    {
+        for (int i = 0; i < N; ++i) { re[(size_t) i] = x[(size_t) (f * H + i)] * win[(size_t) i]; im[(size_t) i] = 0.0; }
+        // radix-2 FFT in place
+        for (int i = 1, j = 0; i < N; ++i)
+        {
+            int bit = N >> 1;
+            for (; j & bit; bit >>= 1) j ^= bit;
+            j ^= bit;
+            if (i < j) { std::swap (re[(size_t) i], re[(size_t) j]); std::swap (im[(size_t) i], im[(size_t) j]); }
+        }
+        for (int len = 2; len <= N; len <<= 1)
+        {
+            const int step = N / len, halfLen = len / 2;
+            for (int i = 0; i < N; i += len)
+                for (int k = 0; k < halfLen; ++k)
+                {
+                    const double wr = cosT[(size_t) (k * step)], wi = sinT[(size_t) (k * step)];
+                    const size_t a = (size_t) (i + k), b = a + (size_t) halfLen;
+                    const double tr = re[b] * wr - im[b] * wi, ti = re[b] * wi + im[b] * wr;
+                    re[b] = re[a] - tr; im[b] = im[a] - ti;
+                    re[a] += tr; im[a] += ti;
+                }
+        }
+        double flux = 0.0;
+        for (int b = 0; b < NB; ++b)
+        {
+            const int a0 = lo[b], a1 = std::max (a0 + 1, std::min (HALF, lo[b + 1]));
+            double s = 0.0;
+            for (int k = a0; k < a1 && k < HALF; ++k)
+                s += std::sqrt (re[(size_t) k] * re[(size_t) k] + im[(size_t) k] * im[(size_t) k]) / wsum;
+            cur[(size_t) b] = std::log1p (40.0 * s / std::max (1, std::min (HALF, a1) - a0));
+            if (f > 0) flux += std::max (0.0, cur[(size_t) b] - prev[(size_t) b]);
+        }
+        prev = cur;
+        env[(size_t) f] = (float) (flux / NB);
+    }
+
+    // remove the slowly varying level (about 1 s window)
+    const int w = 43;
+    std::vector<double> csum ((size_t) frames + 1, 0.0);
+    for (long f = 0; f < frames; ++f) csum[(size_t) f + 1] = csum[(size_t) f] + env[(size_t) f];
+    std::vector<float> out ((size_t) frames);
+    for (long f = 0; f < frames; ++f)
+    {
+        const long a = std::max<long> (0, f - w), b = std::min<long> (frames, f + w + 1);
+        out[(size_t) f] = (float) std::max (0.0, env[(size_t) f] - (csum[(size_t) b] - csum[(size_t) a]) / (2.0 * w + 1.0));
+    }
+    return out;
+}
+
 inline std::shared_ptr<Spectrogram> analyse (const std::vector<float>& mono,
                                              double sampleRate,
                                              const std::function<bool()>& shouldCancel = {})
@@ -153,6 +228,7 @@ inline std::shared_ptr<Spectrogram> analyse (const std::vector<float>& mono,
     const long origLen = (long) audio.size();
     if (origLen < 2048)
         return spec;
+    spec->beatEnv = computeBeatEnvelope (audio);
 
     // zero padding of half an overlap in front, then fixed windows with an overlap of 30 frames
     std::vector<float> padded ((size_t) (origLen + detail::kOverlap / 2), 0.0f);
@@ -406,8 +482,60 @@ inline std::vector<Note> transcribe (const Spectrogram& sp, const Settings& s)
 
 // Tempo estimate (BPM) from the note-onset activity of the network output; 0 = not sure.
 // Used for the MIDI file's tempo when the DAW does not tell us the project tempo.
+inline double estimateBpmFromEnvelope (const std::vector<float>& envIn)
+{
+    const int F = (int) envIn.size();
+    const double fps = (double) detail::kSampleRate / 256.0;
+    if (F < 600)
+        return 0.0;
+    double mean = 0.0;
+    for (float v : envIn) mean += v;
+    mean /= F;
+    std::vector<double> e ((size_t) F);
+    for (int f = 0; f < F; ++f) e[(size_t) f] = envIn[(size_t) f] - mean;
+
+    const int maxLag = (int) (4.0 * fps);
+    std::vector<double> ac ((size_t) maxLag + 2, 0.0);
+    for (int lag = 1; lag <= maxLag + 1; ++lag)
+    {
+        double s = 0.0;
+        for (int f = lag; f < F; ++f) s += e[(size_t) f] * e[(size_t) (f - lag)];
+        ac[(size_t) lag] = std::max (0.0, s / (double) (F - lag));
+    }
+    auto at = [&] (double lag)
+    {
+        if (lag < 1.0 || lag >= (double) maxLag) return 0.0;
+        const int i = (int) lag;
+        const double fr = lag - i;
+        return ac[(size_t) i] * (1.0 - fr) + ac[(size_t) i + 1] * fr;
+    };
+
+    double best = 0.0, bestBpm = 0.0, total = 0.0;
+    int count = 0;
+    for (double bpm = 55.0; bpm <= 190.0 + 1e-9; bpm += 0.25)
+    {
+        const double lag = 60.0 / bpm * fps;
+        double score = at (lag) + 0.5 * at (2.0 * lag) + 0.5 * at (3.0 * lag) + 0.5 * at (4.0 * lag) + 0.2 * at (0.5 * lag);
+        const double oct = std::log2 (bpm / 112.0);
+        score *= std::exp (-0.5 * oct * oct / (0.55 * 0.55));
+        total += score;
+        ++count;
+        if (score > best) { best = score; bestBpm = bpm; }
+    }
+    if (bestBpm <= 0.0 || best < 1.5 * total / (double) std::max (1, count))      // flat: nothing periodic
+        return 0.0;
+    const double snapped = std::round (bestBpm);
+    return std::abs (bestBpm - snapped) < 0.7 ? snapped : std::round (bestBpm * 10.0) / 10.0;
+}
+
 inline double estimateBpm (const Spectrogram& sp)
 {
+    if (! sp.beatEnv.empty())
+    {
+        const double b = estimateBpmFromEnvelope (sp.beatEnv);
+        if (b > 0.0)
+            return b;
+    }
     const int F = sp.numFrames, P = Spectrogram::numPitches;
     if (F < 600)                                                    // shorter than ~7 s: not enough to tell
         return 0.0;

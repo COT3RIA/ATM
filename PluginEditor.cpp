@@ -1217,6 +1217,11 @@ void KeyReadout::paint (juce::Graphics& g)
             break;
     }
 
+    {
+        juce::GlyphArrangement ga;                                   // the tempo part of the line is a button
+        ga.addLineOfText (font, "BPM " + bpmText, 0.0f, 0.0f);
+        bpmHitWidth = (int) std::ceil (ga.getBoundingBox (0, -1, true).getWidth()) + 6;
+    }
     auto top = r.removeFromTop (22.0f);
     g.setColour (pal.text);
     g.setFont (font);
@@ -1266,6 +1271,7 @@ AdvancedPanel::AdvancedPanel (AudioToMidiProcessor& p) : processor (p)
     addAndMakeVisible (resetButton);
 
     addAndMakeVisible (readout);
+    readout.onBpmClick = [this] { askBpm(); };
     addAndMakeVisible (updatesToggle);
     updatesToggle.setToggleState (processor.getCheckUpdates(), juce::dontSendNotification);
     updatesToggle.onClick = [this] { processor.setCheckUpdates (updatesToggle.getToggleState()); };
@@ -1312,6 +1318,35 @@ void AdvancedPanel::chooseFolder()
                                   processor.requestReconvert();    // rewrite the .mid into the new folder
                               }
                           });
+}
+
+void AdvancedPanel::askBpm()
+{
+    if (! processor.hasAudio())
+        return;
+    const double now = processor.getTrackBpm();
+    auto* aw = new juce::AlertWindow (tr ("Tempo (BPM)"), tr ("Type the tempo of the track (30 - 300). The MIDI file is written in it when the DAW gives no tempo."),
+                                      juce::MessageBoxIconType::NoIcon);
+    aw->addTextEditor ("bpm", now > 0.0 ? juce::String (now, now == std::floor (now) ? 0 : 1) : juce::String());
+    aw->addButton (tr ("OK"), 1, juce::KeyPress (juce::KeyPress::returnKey));
+    aw->addButton (tr ("Auto"), 2);
+    aw->addButton (tr ("Cancel"), 0, juce::KeyPress (juce::KeyPress::escapeKey));
+    juce::Component::SafePointer<AdvancedPanel> safe (this);
+    aw->enterModalState (true, juce::ModalCallbackFunction::create ([safe, aw] (int r)
+    {
+        if (safe != nullptr)
+        {
+            if (r == 1)
+            {
+                const double v = aw->getTextEditorContents ("bpm").replaceCharacter (',', '.').getDoubleValue();
+                if (v >= 30.0 && v <= 300.0)
+                    safe->processor.setManualBpm (v);
+            }
+            else if (r == 2)
+                safe->processor.setManualBpm (0.0);
+        }
+        delete aw;
+    }), false);
 }
 
 void AdvancedPanel::chooseBackground()

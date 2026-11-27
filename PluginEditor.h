@@ -287,17 +287,32 @@ class KeyReadout : public juce::Component, public juce::SettableTooltipClient
 {
 public:
     KeyReadout() { setMouseCursor (juce::MouseCursor::PointingHandCursor);
-                   setTooltip ("Detected tempo and key. Click the key to switch between the two most likely keys"); }
+                   setTooltip ("Detected tempo and key. Click the tempo to type it in by hand, click the key to switch between the two most likely keys"); }
     void update (AudioToMidiProcessor&);
-    void relocalise() { setTooltip (lang::tr ("Detected tempo and key. Click the key to switch between the two most likely keys")); repaint(); }
+    void relocalise() { setTooltip (lang::tr ("Detected tempo and key. Click the tempo to type it in by hand, click the key to switch between the two most likely keys")); repaint(); }
     void paint (juce::Graphics&) override;
-    void mouseUp (const juce::MouseEvent& e) override { if (contains (e.getPosition()) && key.valid) { showAlt = ! showAlt; repaint(); } }
+    void mouseUp (const juce::MouseEvent& e) override
+    {
+        if (! contains (e.getPosition()))
+            return;
+        if (e.x < bpmHitWidth)                                       // the tempo part: type it in by hand
+        {
+            if (onBpmClick) onBpmClick();
+        }
+        else if (key.valid)
+        {
+            showAlt = ! showAlt;
+            repaint();
+        }
+    }
+    std::function<void()> onBpmClick;
 
 private:
     a2m::KeyResult key;
     double bpm = 0.0;
     int version = -1;
     bool showAlt = false;
+    int bpmHitWidth = 0;
 };
 
 class AdvancedPanel : public juce::Component
@@ -311,6 +326,7 @@ public:
     void refresh();                          // update play button text
     void relocalise();                       // set all texts in the current language
     void chooseFolder();
+    void askBpm();                           // type the tempo in by hand
     void chooseBackground();                 // menu: pick a picture / back to the built-in one
     void resetDefaults();
     std::function<void()> onBackgroundChanged;

@@ -368,6 +368,7 @@ void AudioToMidiProcessor::clearAll()
     totalSeconds = 0.0;
     detectedBpm = 0.0;
     tempoMode = 0;
+    manualBpm = 0.0;
     tempoFromHost = false;
     busy = false;
     ++notesVersion;
@@ -381,6 +382,14 @@ void AudioToMidiProcessor::cycleTempoMode()
     ++notesVersion;                                 // refresh the readout
     if (hasAudio() && ! busy.load())
         requestReconvert();                         // without a DAW tempo the file is written in the track tempo
+}
+
+void AudioToMidiProcessor::setManualBpm (double bpm)
+{
+    manualBpm = (bpm >= 30.0 && bpm <= 300.0) ? bpm : 0.0;
+    ++notesVersion;                                 // refresh the readout
+    if (hasAudio() && ! busy.load())
+        requestReconvert();
 }
 
 void AudioToMidiProcessor::requestReconvert()
@@ -499,6 +508,7 @@ void AudioToMidiProcessor::runConversion (juce::File file, bool decode, int gen)
         spec = analysed;
         detectedBpm = a2m::estimateBpm (*analysed);
         tempoMode = 0;
+        manualBpm = 0.0;
         totalSeconds = seconds;
         const juce::ScopedLock sl (dataLock);
         spectrogram = spec;

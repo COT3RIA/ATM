@@ -82,8 +82,13 @@ namespace lang
             add ("Interface language: English / Russian", "Язык интерфейса: English / Русский");
             add ("Tell me when a new version of ATM is available", "Сообщать о выходе новой версии ATM");
             add ("Click to type a value", "Нажмите, чтобы ввести значение");
-            add ("Detected tempo and key. Click the key to switch between the two most likely keys",
-                 "Найденный темп и тональность. Нажмите на тональность, чтобы переключить на второй по вероятности вариант");
+            add ("Detected tempo and key. Click the tempo to type it in by hand, click the key to switch between the two most likely keys",
+                 "Найденный темп и тональность. Нажмите на темп, чтобы ввести его вручную, или на тональность, чтобы переключить на второй по вероятности вариант");
+            add ("Tempo (BPM)", "Темп (BPM)");
+            add ("Type the tempo of the track (30 - 300). The MIDI file is written in it when the DAW gives no tempo.",
+                 "Введите темп трека (30 - 300). В нём записывается MIDI-файл, если DAW не передаёт свой темп.");
+            add ("Auto", "Авто");
+            add ("Cancel", "Отмена");
             add ("Choose the folder for generated MIDI files", "Выберите папку для MIDI-файлов");
             add ("Choose an audio file", "Выберите аудиофайл");
 

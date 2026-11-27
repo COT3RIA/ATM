@@ -121,3 +121,5 @@ relative major / minor). The key is an estimate from the transcribed notes; shor
 
 The whole interface is available in English and Russian (key LANG on page 2). The default follows the language of the
 system; the choice is remembered in `COTERIA/ATM.settings` in the user's application-data folder. All texts are in `Lang.h`.
+
+**Manual tempo:** click the BPM number in the readout (bottom right of the Advanced Settings panel) to type the tempo of the track by hand; "Auto" returns to the detected tempo. The tempo is detected from the audio itself (drums and attacks), and this lets you fix the cases where it is off.
