@@ -66,6 +66,8 @@ public:
     bool isBusy() const { return busy.load(); }
 
     juce::File getMidiFolder() const;
+    juce::File getBackgroundFile() const;           // the user's own ATM picture (empty = built-in)
+    void setBackgroundFile (const juce::File&);
     void setMidiFolder (const juce::File& folder);
     juce::File getLastMidiFile() const;
     juce::String getStatusText() const;           // formatted in the current interface language

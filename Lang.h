@@ -105,6 +105,12 @@ namespace lang
             // settings panel
             add ("Advanced Settings", "Доп. настройки");
             add ("Set MIDI folder...", "Папка MIDI...");
+            add ("Skin...", "Фон...");
+            add ("Your own background behind the ATM: choose a picture or go back to the built-in one",
+                 "Свой фон за банкоматом: выбрать картинку или вернуть встроенный");
+            add ("Choose a picture...", "Выбрать картинку...");
+            add ("Built-in background", "Встроенный фон");
+            add ("Choose a background for the ATM (PNG or JPG, 2:3, best 1024 x 1536)", "Выберите фон для банкомата (PNG или JPG, 2:3, лучше 1024 x 1536)");
             add ("Note sensitivity", "Чувствит. нот");   add ("Split sensitivity", "Разделение нот");
             add ("Min note length", "Мин. длина ноты");  add ("Min frequency", "Мин. частота");
             add ("Max frequency", "Макс. частота");      add ("Note-off hangover", "Затухание ноты");

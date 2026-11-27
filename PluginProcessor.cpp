@@ -245,6 +245,21 @@ void AudioToMidiProcessor::startUpdateCheck()
 #endif
 }
 
+juce::File AudioToMidiProcessor::getBackgroundFile() const
+{
+    juce::PropertiesFile pf (settingsFile(), juce::PropertiesFile::Options());
+    const auto p = pf.getValue ("background");
+    return p.isEmpty() ? juce::File() : juce::File (p);
+}
+
+void AudioToMidiProcessor::setBackgroundFile (const juce::File& f)
+{
+    settingsFile().getParentDirectory().createDirectory();
+    juce::PropertiesFile pf (settingsFile(), juce::PropertiesFile::Options());
+    pf.setValue ("background", f.getFullPathName());
+    pf.saveIfNeeded();
+}
+
 juce::File AudioToMidiProcessor::getMidiFolder() const
 {
     const juce::ScopedLock sl (infoLock);

@@ -46,6 +46,12 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets/sfx_money_counter.wav")
 else()
     set(ATM_HAS_SFX 0)
 endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets/bg_default.jpg")
+    list(APPEND ATM_BINARY assets/bg_default.jpg)           # the default background behind the ATM
+    set(ATM_HAS_BG 1)
+else()
+    set(ATM_HAS_BG 0)
+endif()
 juce_add_binary_data(AtmAssets SOURCES ${ATM_BINARY})
 set_target_properties(AtmAssets PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
@@ -70,8 +76,9 @@ target_compile_definitions(AudioToMidi PUBLIC
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
     JUCE_USE_MP3AUDIOFORMAT=1      # MP3 decoding
-    JUCE_USE_FLAC=1
-    ATM_HAS_SFX=${ATM_HAS_SFX})               # FLAC decoding
+    JUCE_USE_FLAC=1                # FLAC decoding
+    ATM_HAS_SFX=${ATM_HAS_SFX}
+    ATM_HAS_BG=${ATM_HAS_BG})
 
 target_link_libraries(AudioToMidi
     PRIVATE

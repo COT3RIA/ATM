@@ -424,17 +424,46 @@ void NoteRoll::paint (juce::Graphics& g)
 AtmBackground::AtmBackground()
 {
     setInterceptsMouseClicks (false, false);
-    image = juce::ImageCache::getFromMemory (BinaryData::atm_full_png, BinaryData::atm_full_pngSize);
+    cabinet = juce::ImageCache::getFromMemory (BinaryData::atm_full_png, BinaryData::atm_full_pngSize);
+#if ATM_HAS_BG
+    builtInBackdrop = juce::ImageCache::getFromMemory (BinaryData::bg_default_jpg, BinaryData::bg_default_jpgSize);
+#endif
+    backdrop = builtInBackdrop;
+}
+
+void AtmBackground::useFile (const juce::File& f)
+{
+    backdrop = builtInBackdrop;
+    if (f.existsAsFile())
+    {
+        auto img = juce::ImageFileFormat::loadFrom (f);
+        if (img.isValid() && img.getWidth() >= 200 && img.getHeight() >= 300)
+        {
+            if (img.getWidth() > 2048)                                   // keep the memory use reasonable
+                img = img.rescaled (2048, juce::roundToInt (2048.0 * img.getHeight() / img.getWidth()),
+                                    juce::Graphics::highResamplingQuality);
+            backdrop = img;
+        }
+    }
+    repaint();
 }
 
 void AtmBackground::paint (juce::Graphics& g)
 {
     g.fillAll (juce::Colours::black);
-    if (image.isValid())
+    g.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
+    if (backdrop.isValid())
     {
-        g.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
-        g.drawImage (image, getLocalBounds().toFloat());
+        // the background is shown at 2:3; a picture with other proportions is cropped in the middle
+        const double want = (double) getWidth() / (double) getHeight();
+        const double have = (double) backdrop.getWidth() / (double) backdrop.getHeight();
+        int sx = 0, sy = 0, sw = backdrop.getWidth(), sh = backdrop.getHeight();
+        if (have > want) { sw = juce::roundToInt (sh * want); sx = (backdrop.getWidth() - sw) / 2; }
+        else             { sh = juce::roundToInt (sw / want); sy = (backdrop.getHeight() - sh) / 2; }
+        g.drawImage (backdrop, 0, 0, getWidth(), getHeight(), sx, sy, sw, sh);
     }
+    if (cabinet.isValid())
+        g.drawImage (cabinet, getLocalBounds().toFloat());
 }
 
 //==============================================================================
@@ -1218,6 +1247,8 @@ AdvancedPanel::AdvancedPanel (AudioToMidiProcessor& p) : processor (p)
 
     addAndMakeVisible (folderButton);
     folderButton.onClick = [this] { chooseFolder(); };
+    addAndMakeVisible (backgroundButton);
+    backgroundButton.onClick = [this] { chooseBackground(); };
 
     setupRow (rows[0], "Note sensitivity",  ids::noteSens,  [] (double v) { return juce::String (v, 2); });
     setupRow (rows[1], "Split sensitivity", ids::splitSens, [] (double v) { return juce::String (v, 2); });
@@ -1248,6 +1279,8 @@ void AdvancedPanel::relocalise()
 {
     title.setText (tr ("Advanced Settings"), juce::dontSendNotification);
     folderButton.setButtonText (tr ("Set MIDI folder..."));
+    backgroundButton.setButtonText (tr ("Skin..."));
+    backgroundButton.setTooltip (tr ("Your own background behind the ATM: choose a picture or go back to the built-in one"));
     for (auto& row : rows)
     {
         row.name.setText (tr (row.key), juce::dontSendNotification);
@@ -1279,6 +1312,36 @@ void AdvancedPanel::chooseFolder()
                                   processor.requestReconvert();    // rewrite the .mid into the new folder
                               }
                           });
+}
+
+void AdvancedPanel::chooseBackground()
+{
+    juce::PopupMenu m;
+    m.addItem (1, tr ("Choose a picture..."));
+    m.addItem (2, tr ("Built-in background"), processor.getBackgroundFile() != juce::File());
+    m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&backgroundButton), [this] (int r)
+    {
+        if (r == 1)
+        {
+            chooser = std::make_unique<juce::FileChooser> (tr ("Choose a background for the ATM (PNG or JPG, 2:3, best 1024 x 1536)"),
+                                                           processor.getBackgroundFile().getParentDirectory(), "*.png;*.jpg;*.jpeg");
+            chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                                  [this] (const juce::FileChooser& fc)
+                                  {
+                                      const auto f = fc.getResult();
+                                      if (f.existsAsFile())
+                                      {
+                                          processor.setBackgroundFile (f);
+                                          if (onBackgroundChanged) onBackgroundChanged();
+                                      }
+                                  });
+        }
+        else if (r == 2)
+        {
+            processor.setBackgroundFile ({});
+            if (onBackgroundChanged) onBackgroundChanged();
+        }
+    });
 }
 
 void AdvancedPanel::resetDefaults()
@@ -1387,8 +1450,9 @@ void AdvancedPanel::resized()
 {
     const int W = getWidth();
 
-    title.setBounds (18, 6, 280, 36);
-    folderButton.setBounds (W - 16 - 190, 6, 190, 36);
+    title.setBounds (18, 6, 250, 36);
+    folderButton.setBounds (W - 16 - 150, 6, 150, 36);
+    backgroundButton.setBounds (W - 16 - 150 - 6 - 84, 6, 84, 36);
 
     const int centres[] = { 62, 97, 132, 167, 202, 237 };
     for (size_t i = 0; i < rows.size(); ++i)
@@ -1434,6 +1498,8 @@ AudioToMidiEditor::AudioToMidiEditor (AudioToMidiProcessor& p)
     content.addAndMakeVisible (keypad);
     content.addAndMakeVisible (dragHandle);
     content.addAndMakeVisible (panel);
+    panel.onBackgroundChanged = [this] { background.useFile (processor.getBackgroundFile()); };
+    background.useFile (processor.getBackgroundFile());
     content.addAndMakeVisible (history);
     history.setVisible (false);
     applyPanelVisibility();

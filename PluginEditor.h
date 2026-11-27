@@ -189,9 +189,10 @@ class AtmBackground : public juce::Component
 public:
     AtmBackground();
     void paint (juce::Graphics&) override;
+    void useFile (const juce::File& f);          // user's own background behind the ATM; an empty / unreadable file gives the built-in one
 
 private:
-    juce::Image image;
+    juce::Image cabinet, backdrop, builtInBackdrop;
 };
 
 // A hardware key drawn in the picture: invisible, lights up under the mouse
@@ -310,7 +311,9 @@ public:
     void refresh();                          // update play button text
     void relocalise();                       // set all texts in the current language
     void chooseFolder();
+    void chooseBackground();                 // menu: pick a picture / back to the built-in one
     void resetDefaults();
+    std::function<void()> onBackgroundChanged;
 
 private:
     struct Row
@@ -329,7 +332,7 @@ private:
     AudioToMidiProcessor& processor;
 
     juce::Label title;
-    juce::TextButton folderButton { "Set MIDI folder..." };
+    juce::TextButton folderButton { "Set MIDI folder..." }, backgroundButton { "Skin..." };
     std::array<Row, 6> rows;
     juce::ToggleButton inferToggle, smoothToggle, sfxToggle;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> inferAtt, smoothAtt, sfxAtt;
