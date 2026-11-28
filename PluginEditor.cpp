@@ -487,6 +487,69 @@ void SignGlow::paint (juce::Graphics& g)
 
 //==============================================================================
 // Hardware keys
+void SkinButton::paintButton (juce::Graphics& g, bool highlighted, bool down)
+{
+    // almost invisible at rest, a little brighter under the cursor
+    auto r = getLocalBounds().toFloat().reduced (1.5f);
+    const float a = down ? 1.0f : (highlighted ? 0.75f : 0.0f);
+
+    g.setColour (juce::Colour (0xff0b1210).withAlpha (0.10f + 0.10f * a));
+    g.fillRoundedRectangle (r, 8.0f);
+    if (highlighted)
+    {
+        g.setColour (juce::Colour (0xffcaf5dc).withAlpha (0.10f));
+        g.fillRoundedRectangle (r, 8.0f);
+    }
+    const float line = highlighted ? 0.62f : 0.22f;
+    g.setColour (juce::Colours::white.withAlpha (line));
+    g.drawRoundedRectangle (r, 8.0f, 1.4f);
+
+    // the picture: a small frame with a sun and hills
+    const auto icon = r.reduced (r.getWidth() * 0.24f, r.getHeight() * 0.27f);
+    g.setColour (juce::Colours::white.withAlpha (highlighted ? 0.85f : 0.30f));
+    g.drawRoundedRectangle (icon, 3.0f, 1.6f);
+    g.fillEllipse (icon.getX() + icon.getWidth() * 0.62f, icon.getY() + icon.getHeight() * 0.18f,
+                   icon.getWidth() * 0.16f, icon.getWidth() * 0.16f);
+    juce::Path hills;
+    hills.startNewSubPath (icon.getX() + 1.5f, icon.getBottom() - 1.5f);
+    hills.lineTo (icon.getX() + icon.getWidth() * 0.36f, icon.getY() + icon.getHeight() * 0.50f);
+    hills.lineTo (icon.getX() + icon.getWidth() * 0.58f, icon.getY() + icon.getHeight() * 0.76f);
+    hills.lineTo (icon.getX() + icon.getWidth() * 0.72f, icon.getY() + icon.getHeight() * 0.58f);
+    hills.lineTo (icon.getRight() - 1.5f, icon.getBottom() - 1.5f);
+    hills.closeSubPath();
+    g.fillPath (hills);
+}
+
+void AudioToMidiEditor::chooseBackground()
+{
+    juce::PopupMenu m;
+    m.addItem (1, tr ("Choose a picture..."));
+    m.addItem (2, tr ("Built-in background"), processor.getBackgroundFile() != juce::File());
+    m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&skinButton), [this] (int r)
+    {
+        if (r == 1)
+        {
+            chooser = std::make_unique<juce::FileChooser> (tr ("Choose a background for the ATM (PNG or JPG, 2:3, best 1024 x 1536)"),
+                                                           processor.getBackgroundFile().getParentDirectory(), "*.png;*.jpg;*.jpeg");
+            chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                                  [this] (const juce::FileChooser& fc)
+                                  {
+                                      const auto f = fc.getResult();
+                                      if (f.existsAsFile())
+                                      {
+                                          processor.setBackgroundFile (f);
+                                          background.useFile (f);
+                                      }
+                                  });
+        }
+        else if (r == 2)
+        {
+            processor.setBackgroundFile ({});
+            background.useFile ({});
+        }
+    });
+}
+
 void HwButton::paintButton (juce::Graphics& g, bool highlighted, bool down)
 {
     auto r = getLocalBounds().toFloat().reduced (1.0f);
@@ -1252,8 +1315,6 @@ AdvancedPanel::AdvancedPanel (AudioToMidiProcessor& p) : processor (p)
 
     addAndMakeVisible (folderButton);
     folderButton.onClick = [this] { chooseFolder(); };
-    addAndMakeVisible (backgroundButton);
-    backgroundButton.onClick = [this] { chooseBackground(); };
 
     setupRow (rows[0], "Note sensitivity",  ids::noteSens,  [] (double v) { return juce::String (v, 2); });
     setupRow (rows[1], "Split sensitivity", ids::splitSens, [] (double v) { return juce::String (v, 2); });
@@ -1285,8 +1346,6 @@ void AdvancedPanel::relocalise()
 {
     title.setText (tr ("Advanced Settings"), juce::dontSendNotification);
     folderButton.setButtonText (tr ("Set MIDI folder..."));
-    backgroundButton.setButtonText (tr ("Skin..."));
-    backgroundButton.setTooltip (tr ("Your own background behind the ATM: choose a picture or go back to the built-in one"));
     for (auto& row : rows)
     {
         row.name.setText (tr (row.key), juce::dontSendNotification);
@@ -1347,36 +1406,6 @@ void AdvancedPanel::askBpm()
         }
         delete aw;
     }), false);
-}
-
-void AdvancedPanel::chooseBackground()
-{
-    juce::PopupMenu m;
-    m.addItem (1, tr ("Choose a picture..."));
-    m.addItem (2, tr ("Built-in background"), processor.getBackgroundFile() != juce::File());
-    m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&backgroundButton), [this] (int r)
-    {
-        if (r == 1)
-        {
-            chooser = std::make_unique<juce::FileChooser> (tr ("Choose a background for the ATM (PNG or JPG, 2:3, best 1024 x 1536)"),
-                                                           processor.getBackgroundFile().getParentDirectory(), "*.png;*.jpg;*.jpeg");
-            chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                                  [this] (const juce::FileChooser& fc)
-                                  {
-                                      const auto f = fc.getResult();
-                                      if (f.existsAsFile())
-                                      {
-                                          processor.setBackgroundFile (f);
-                                          if (onBackgroundChanged) onBackgroundChanged();
-                                      }
-                                  });
-        }
-        else if (r == 2)
-        {
-            processor.setBackgroundFile ({});
-            if (onBackgroundChanged) onBackgroundChanged();
-        }
-    });
 }
 
 void AdvancedPanel::resetDefaults()
@@ -1485,9 +1514,8 @@ void AdvancedPanel::resized()
 {
     const int W = getWidth();
 
-    title.setBounds (18, 6, 250, 36);
-    folderButton.setBounds (W - 16 - 150, 6, 150, 36);
-    backgroundButton.setBounds (W - 16 - 150 - 6 - 84, 6, 84, 36);
+    title.setBounds (18, 6, 280, 36);
+    folderButton.setBounds (W - 16 - 190, 6, 190, 36);
 
     const int centres[] = { 62, 97, 132, 167, 202, 237 };
     for (size_t i = 0; i < rows.size(); ++i)
@@ -1533,7 +1561,8 @@ AudioToMidiEditor::AudioToMidiEditor (AudioToMidiProcessor& p)
     content.addAndMakeVisible (keypad);
     content.addAndMakeVisible (dragHandle);
     content.addAndMakeVisible (panel);
-    panel.onBackgroundChanged = [this] { background.useFile (processor.getBackgroundFile()); };
+    content.addAndMakeVisible (skinButton);
+    skinButton.onClick = [this] { chooseBackground(); };
     background.useFile (processor.getBackgroundFile());
     content.addAndMakeVisible (history);
     history.setVisible (false);
@@ -1625,6 +1654,7 @@ void AudioToMidiEditor::layoutContent()
 {
     // everything is placed on the picture (1024 x 1536)
     background.setBounds (0, 0, baseW, baseH);
+    skinButton.setBounds (baseW - 24 - 64, 24, 64, 64);              // top right corner
     led.setBounds (380, 238, 264, 20);
     roll.setBounds (350, 360, 328, 229);
 
@@ -1698,6 +1728,7 @@ void AudioToMidiEditor::relocalise()
     keyTheme.setTooltip (tr ("Dark / light theme of the panels"));
     keySettings.setTooltip (tr ("Show / hide the Advanced Settings"));
     keyTelegram.setTooltip (tr ("COTERIA on Telegram"));
+    skinButton.setTooltip (tr ("Your own background behind the ATM: choose a picture or go back to the built-in one"));
     signLink.setTooltip (tr ("COTERIA on Telegram"));
     keySolo.setTooltip (tr ("Note mode: Normal (default), Clean (fewer extra notes: vocals with a beat, stray notes), More (more notes: live instruments, band recordings, clean synths) or Strings (fewest extra notes: violin, orchestra, heavy distorted guitars). It only sets Note and Split sensitivity"));
     keySign.setTooltip (tr ("The ATM sign blinks in time with the MIDI: on / off"));

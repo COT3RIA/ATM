@@ -205,6 +205,14 @@ public:
     bool lit = false;                   // a mode that is switched on
 };
 
+// Small framed picture icon in the top right corner: opens the menu for the background behind the ATM
+class SkinButton : public juce::Button
+{
+public:
+    SkinButton() : juce::Button ({}) { setMouseCursor (juce::MouseCursor::PointingHandCursor); }
+    void paintButton (juce::Graphics&, bool highlighted, bool down) override;
+};
+
 // The card reader: the audio file is "inserted" here (click, or drop a file on the window)
 class CardReader : public juce::Button
 {
@@ -327,9 +335,7 @@ public:
     void relocalise();                       // set all texts in the current language
     void chooseFolder();
     void askBpm();                           // type the tempo in by hand
-    void chooseBackground();                 // menu: pick a picture / back to the built-in one
     void resetDefaults();
-    std::function<void()> onBackgroundChanged;
 
 private:
     struct Row
@@ -348,7 +354,7 @@ private:
     AudioToMidiProcessor& processor;
 
     juce::Label title;
-    juce::TextButton folderButton { "Set MIDI folder..." }, backgroundButton { "Skin..." };
+    juce::TextButton folderButton { "Set MIDI folder..." };
     std::array<Row, 6> rows;
     juce::ToggleButton inferToggle, smoothToggle, sfxToggle;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> inferAtt, smoothAtt, sfxAtt;
@@ -399,6 +405,8 @@ private:
 
     juce::Component content;                            // everything lives here and is scaled as a whole
     AtmBackground background;
+    SkinButton skinButton;
+    void chooseBackground();                            // menu: pick a picture / back to the built-in one
     StatusLed led;
     SignGlow signGlow;
     SignLink signLink;
