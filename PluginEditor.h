@@ -32,6 +32,7 @@ public:
     void drawToggleButton (juce::Graphics&, juce::ToggleButton&, bool highlighted, bool down) override;
     juce::Font getTextButtonFont (juce::TextButton&, int buttonHeight) override;
     juce::Font getPopupMenuFont() override;
+    float popupFontSize = 15.0f;        // follows the size of the plugin window
 };
 
 // The palette of whatever look-and-feel a component currently uses

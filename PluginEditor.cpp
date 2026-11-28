@@ -135,7 +135,7 @@ void GreenLookAndFeel::drawToggleButton (juce::Graphics& g, juce::ToggleButton& 
 
 juce::Font GreenLookAndFeel::getPopupMenuFont()
 {
-    return juce::Font (juce::FontOptions (21.0f));
+    return juce::Font (juce::FontOptions (popupFontSize));
 }
 
 juce::Font GreenLookAndFeel::getTextButtonFont (juce::TextButton&, int)
@@ -530,12 +530,15 @@ void AudioToMidiEditor::chooseBackground()
     juce::PopupMenu m;
     m.addItem (1, tr ("Choose a picture..."));
     m.addItem (2, tr ("Built-in background"), processor.getBackgroundFile() != juce::File());
-    const int menuW = 340;
+    const float k = (float) getWidth() / (float) baseW;               // menu follows the window size
+    laf.popupFontSize = juce::jlimit (13.0f, 20.0f, 30.0f * k);
+    const int menuW = juce::roundToInt (laf.popupFontSize * 13.0f);
+    const int itemH = juce::roundToInt (laf.popupFontSize * 2.1f);
     const auto b = skinButton.getScreenBounds();                      // the menu opens under the icon, its right edge on the icon's
     m.showMenuAsync (juce::PopupMenu::Options()
                          .withTargetScreenArea (juce::Rectangle<int> (b.getRight() - menuW, b.getY(), menuW, b.getHeight()))
                          .withMinimumWidth (menuW)
-                         .withStandardItemHeight (44),
+                         .withStandardItemHeight (itemH),
                      [this] (int r)
     {
         if (r == 1)
