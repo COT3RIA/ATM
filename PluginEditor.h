@@ -31,6 +31,7 @@ public:
     void drawButtonBackground (juce::Graphics&, juce::Button&, const juce::Colour&, bool highlighted, bool down) override;
     void drawToggleButton (juce::Graphics&, juce::ToggleButton&, bool highlighted, bool down) override;
     juce::Font getTextButtonFont (juce::TextButton&, int buttonHeight) override;
+    juce::Font getPopupMenuFont() override;
 };
 
 // The palette of whatever look-and-feel a component currently uses
