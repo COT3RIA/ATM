@@ -1656,8 +1656,12 @@ void AudioToMidiEditor::paint (juce::Graphics& g)
 
 void AudioToMidiEditor::resized()
 {
-    const float scale = (float) getWidth() / (float) baseW;
-    content.setTransform (juce::AffineTransform::scale (scale));
+    // The host may give a window that is a little taller or wider than 2:3: the picture then covers the whole
+    // window (a few pixels are cropped at the edges) instead of leaving a black strip.
+    const float scale = juce::jmax ((float) getWidth() / (float) baseW, (float) getHeight() / (float) baseH);
+    content.setTransform (juce::AffineTransform::scale (scale)
+                              .translated (((float) getWidth()  - baseW * scale) * 0.5f,
+                                           ((float) getHeight() - baseH * scale) * 0.5f));
     content.setBounds (0, 0, baseW, baseH);
     layoutContent();
 
